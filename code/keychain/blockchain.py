@@ -15,6 +15,7 @@ from requests import get
 
 
 class TransactionEncoder(json.JSONEncoder):
+
     def default(self, obj):
         if isinstance(obj, Transaction):
             return vars(obj)
@@ -126,7 +127,6 @@ class Blockchain:
         
         chain = result.json()["chain"]
 
-
     def add_node(self, peer):
         new_peer = Peer(peer)
         self._peers.append(new_peer)
@@ -135,9 +135,35 @@ class Blockchain:
         return self.ip
 
     def put(self, key, value, origin):
+        """Puts the specified key and value on the Blockchain.
+        """
         transaction = Transaction(key, value, origin)
         self.add_transaction(transaction)
-        
+
+    def retrieve(self, key):
+        """Searches the most recent value of the specified key.
+        -> Search the list of blocks in reverse order for the specified key,
+        or implement some indexing schemes if you would like to do something
+        more efficient.
+        """
+        value = None
+        for block in reversed(self._blocks):
+            for transaction in reversed(block.get_transactions()):
+                if transaction.key == key:
+                    value = transaction.value
+        return value
+    
+    def retrieve_all(self, key):
+        """Retrieves all values associated with the specified key on the
+        complete blockchain.
+        """
+        values = []
+        for block in reversed(self._blocks):
+            for transaction in reversed(block.get_transactions()):
+                if transaction.key == key:
+                    values.append(transaction.value)
+        return values
+
     def broadcast(self, peers, message, message_type):
         """ 
         Best effort broadcast
@@ -306,20 +332,20 @@ def get_chain():
                        "chain": chain_data})
 
 
-@app.route("/bootstrap", methods=['POST'])
+@app.route("/bootstrap")
 def boostrap():
     boostrap_address = request.get_json()["bootstrap"]
     node.bootstrap(boostrap_address)
 
 
-@app.route("/addNode", methods=['POST'])
+@app.route("/addNode")
 def add_node():
     address = request.get_json()["address"]
     node.add_node(address)
     return json.dumps({"last_hash": node.get_last_hash()})
 
 
-@app.route("/message", methods=['POST'])
+@app.route("/message")
 def message_hanler():
     message_type = request.get_json()["message_type"]
     message = request.get_json()["message"]
@@ -331,13 +357,22 @@ def message_hanler():
     else:
         pass
 
-
-@app.route("/put", methods=['POST'])
+@app.route("/put")
 def put():
     key = request.get_json()["key"]
     value = request.get_json()["value"]
     origin = request.get_json()["origin"]
     node.put(key, value, origin)
+
+@app.route("/retrieve")
+def retrieve():
+    key = request.get_json()["key"]
+    node.retrieve(key)
+
+@app.route("/retrieve_all")
+def retrieve_all():
+    key = request.get_json()["key"]
+    node.retrieve_all(key)
 
 
 
