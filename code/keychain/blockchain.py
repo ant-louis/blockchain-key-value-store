@@ -90,6 +90,7 @@ class Peer:
         Can be extended if desired.
         """
         self._address = address
+
     def get_address(self):
         return self._address
 
@@ -113,9 +114,6 @@ class Blockchain:
         #self.ip = get('https://api.ipify.org').text
         self.ip = "127.0.0.1:{}".format(parse_arguments().port)
 
-        # Initialize the chain with the Genesis block.
-        self._add_genesis_block()
-
         # Bootstrap the chain with the specified bootstrap address.
         self._bootstrap(bootstrap_address)
 
@@ -125,6 +123,8 @@ class Blockchain:
 
     def _bootstrap(self, address):
         if(address == self.ip):
+            # Initialize the chain with the Genesis block.
+            self._add_genesis_block()
             return
         url = "http://{}/peers".format(address)
         result = get(url)
@@ -137,7 +137,6 @@ class Blockchain:
             self.add_node(peer)
         self.add_node(address)
 
-        print("Peers :",self._peers)
         results = self.broadcast(self._peers, self.ip, "addNode")
         address = get_address_best_hash(results)
         url = "http://{}/blockchain".format(address)
@@ -150,27 +149,23 @@ class Blockchain:
         for block in chain:
             block = json.loads(block)
             transaction = []
-            if not block['_transactions']:
-                print(block["_transactions"])
-                transaction = Transaction(block["_transactions"])
+            if block['_transactions']:
+                trans = block["_transactions"]
+                for t in trans:
+                    transaction.append(Transaction(t["key"], t["value"], t["origin"]))
             self._blocks.append(Block(block["_index"], 
                                         transaction, 
                                         block["_timestamp"], 
                                         block["_previous_hash"]))  
-            # print(self._blocks)
 
+        for block in self._blocks:
+            print(block.get_transactions())
     def add_node(self, peer):
         new_peer = Peer(peer)
         self._peers.append(new_peer)
 
     def get_ip(self):
         return self.ip
-
-    def put(self, key, value, origin):
-        """Puts the specified key and value on the Blockchain.
-        """
-        transaction = Transaction(key, value, origin)
-        self.add_transaction(transaction)
 
     def broadcast(self, peers, message, message_type):
         """ 
@@ -394,7 +389,8 @@ def put():
     key = request.get_json()["key"]
     value = request.get_json()["value"]
     origin = request.get_json()["origin"]
-    node.put(key, value, origin)
+    transaction = Transaction(key, value, origin)
+    node.add_transaction(transaction)
 
 @app.route("/peers")
 def get_peers():
