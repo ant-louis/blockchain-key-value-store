@@ -89,6 +89,7 @@ class Peer:
         Can be extended if desired.
         """
         self._address = address
+
     def get_address(self):
         return self._address
 
@@ -164,12 +165,6 @@ class Blockchain:
 
     def get_ip(self):
         return self.ip
-
-    def put(self, key, value, origin):
-        """Puts the specified key and value on the Blockchain.
-        """
-        transaction = Transaction(key, value, origin)
-        self.add_transaction(transaction)
 
     def broadcast(self, peers, message, message_type):
         """ 
@@ -386,7 +381,8 @@ def put():
     key = request.get_json()["key"]
     value = request.get_json()["value"]
     origin = request.get_json()["origin"]
-    node.put(key, value, origin)
+    transaction = Transaction(key, value, origin)
+    node.add_transaction(transaction)
 
 @app.route("/peers")
 def get_peers():

@@ -24,6 +24,8 @@ class Callback:
 
 
 class Storage:
+
+    port = 5000
     
     def __init__(self, bootstrap, miner):
         """Allocate the backend storage of the high level API, i.e.,
@@ -31,10 +33,10 @@ class Storage:
         been specified, you should allocate the mining process.
         """
         if miner:
-            self._ip = bootstrap
+            self._ip = bootstrap + ":" + str(Storage.port)
 
             # Bootstrap
-            result = get("http://{}:5000/bootstrap".format(self.get_ip()))
+            result = get("http://{}/bootstrap".format(self.get_ip()))
             if result.status_code != 200:
                 print("Unable to connect the bootstrap server")
                 return
@@ -45,7 +47,8 @@ class Storage:
                 print("Unable to connect the bootstrap server")
                 return
         else:
-            self._ip = get('https://api.ipify.org').text
+            Storage.port += 1
+            self._ip = get('https://api.ipify.org').text + ":" + str(Storage.port)
     
     def get_ip(self):
         """
@@ -58,17 +61,17 @@ class Storage:
         The block flag indicates whether the call should block until the value
         has been put onto the blockchain, or if an error occurred.
         """
-        url = "http://{}:5000/put".format(self.get_ip())
-        result = get(url, data=json.dumps({"key": key, "value": value, "origin": self.get_ip()})).json()
+        url = "http://{}/put".format(self.get_ip())
+        result = get(url, data=json.dumps({"key": key, "value": value, "origin": self.get_ip()}))
         if result.status_code != 200:
             print("Unable to connect the bootstrap server")
             return
         
-        # callback = Callback(transaction, self._blockchain)
-        # if block:
-        #     callback.wait()
+        callback = Callback()
+        if block:
+            callback.wait()
 
-        # return callback
+        return callback
 
     def retrieve(self, key):
         """Searches the most recent value of the specified key.
@@ -77,12 +80,13 @@ class Storage:
         or implement some indexing schemes if you would like to do something
         more efficient.
         """
-        # Get the blockchain
-        url = "http://{}:5000/blockchain".format(self.get_ip())
-        chain = get(url).json()
-        if chain.status_code != 200:
-            print("Unable to connect the bootstrap server")
+       # Get the blockchain
+        url = "http://{}/blockchain".format(self.get_ip())
+        result = get(url)
+        if result.status_code != 200:
+            print("Unable to connect the load blockchain")
             return
+        chain = result.json()["chain"]
         
 
         value = None
@@ -97,11 +101,13 @@ class Storage:
         complete blockchain.
         """
         # Get the blockchain
-        url = "http://{}:5000/blockchain".format(self.get_ip())
-        chain = get(url).json()
-        if chain.status_code != 200:
-            print("Unable to connect the bootstrap server")
+        url = "http://{}/blockchain".format(self.get_ip())
+        result = get(url)
+        if result.status_code != 200:
+            print("Unable to connect the load blockchain")
             return
+        chain = result.json()["chain"]
+        
 
         values = []
         for block in reversed(self.get_blocks()):
