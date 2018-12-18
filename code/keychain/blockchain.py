@@ -33,6 +33,7 @@ def parse_arguments():
     return arguments
 
 class TransactionEncoder(json.JSONEncoder):
+
     def default(self, obj):
         if isinstance(obj, Transaction):
             return vars(obj)
@@ -157,7 +158,6 @@ class Blockchain:
                                         block.timestamp, 
                                         block.previous_hash))            
 
-
     def add_node(self, peer):
         new_peer = Peer(peer)
         self._peers.append(new_peer)
@@ -166,9 +166,11 @@ class Blockchain:
         return self.ip
 
     def put(self, key, value, origin):
+        """Puts the specified key and value on the Blockchain.
+        """
         transaction = Transaction(key, value, origin)
         self.add_transaction(transaction)
-        
+
     def broadcast(self, peers, message, message_type):
         """ 
         Best effort broadcast
@@ -255,10 +257,9 @@ class Blockchain:
         self._block_to_confirm = block
         self._block_hash = block_hash
 
-    
     def mine(self):
-        """Implements the mining procedure."""
-
+        """Implements the mining procedure
+        """
         #No pending transactions
         if not self._pending_transactions:
             return False
@@ -294,7 +295,6 @@ class Blockchain:
         self._blocks.append(block)
         return True
 
-
     def _check_block(self, block, computed_hash):
         """
         Check the validity of the block before adding it
@@ -309,7 +309,6 @@ class Blockchain:
                 computed_hash.startswith('0' * self._difficulty) and 
                 computed_hash == block.compute_hash())
 
-
     def is_valid(self):
         """Checks if the current state of the blockchain is valid.
 
@@ -318,6 +317,7 @@ class Blockchain:
         """
         #TODO: Do the method
         raise NotImplementedError
+
 
 def get_address_best_hash(hashes):
     results = {}
@@ -353,19 +353,20 @@ def get_chain():
     return json.dumps({"length": len(chain_data),
                        "chain": chain_data})
 
-
-@app.route("/bootstrap", methods=['POST'])
+@app.route("/bootstrap")
 def boostrap():
     boostrap_address = request.get_json()["bootstrap"]
     node.bootstrap(boostrap_address)
 
+@app.route("/mine")
+def mine():
+    node.mine()
 
-@app.route("/addNode", methods=['POST'])
+@app.route("/addNode")
 def add_node():
     address = request.get_json()["address"]
     node.add_node(address)
     
-
 
 @app.route("/message")
 def message_hanler():
@@ -380,14 +381,12 @@ def message_hanler():
     else:
         pass
 
-
-@app.route("/put", methods=['POST'])
+@app.route("/put")
 def put():
     key = request.get_json()["key"]
     value = request.get_json()["value"]
     origin = request.get_json()["origin"]
     node.put(key, value, origin)
-
 
 @app.route("/peers")
 def get_peers():
