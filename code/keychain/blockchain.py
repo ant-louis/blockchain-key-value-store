@@ -106,7 +106,7 @@ class Blockchain:
 
     def _bootstrap(self, address):
 
-        if(address == "127.0.0.1"):
+        if(address == self.ip):
             return
         print("In bootstrap")
         url = "http://{}:5000/peers".format(address)
@@ -164,6 +164,9 @@ class Blockchain:
     def get_last_hash(self):
         """Return the hash of the last block"""
         return self._blocks[-1].compute_hash()
+
+    def get_peers(self):
+        return self._peers
 
     def difficulty(self):
         """Returns the difficulty level."""
@@ -306,7 +309,7 @@ def get_address_best_hash(hashes):
 app = Flask(__name__)
 print("after app run")
 
-node = Blockchain(2,"127.0.0.1")
+node = Blockchain(2,"139.165.31.15")
 transaction = Transaction("Test", 123, 666)
 node.add_transaction(transaction)
 node.mine()
@@ -357,6 +360,6 @@ def put():
     node.put(key, value, origin)
 
 
-
-
-
+@app.route("/peers")
+def get_peers():
+    return json.dumps({"peers": node.get_peers()})
