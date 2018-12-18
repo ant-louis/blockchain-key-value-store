@@ -27,7 +27,9 @@ class Node:
         results = self.broadcast(self.peers, self.ip, "addNode")
         
         
-
+    def put(self, key, value, origin):
+        transaction = Transaction(key, value, origin)
+        self._blockchain.add_transaction(self, transaction)
 
         
         
@@ -103,6 +105,14 @@ def message_hanler():
         pass
     else:
         pass
+
+
+@app.route("/put", methods=['POST'])
+def put():
+    key = request.get_json()["key"]
+    value = request.get_json()["value"]
+    origin = request.get_json()["origin"]
+    node.put(key, value, origin)
 
 app.run(debug=True, port=5000)
 
