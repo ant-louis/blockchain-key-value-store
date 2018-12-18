@@ -7,11 +7,10 @@ import time
 import datetime
 import json
 import random
+import sys
+import operator
 from hashlib import sha256
 from flask import Flask, request
-import sys
-import json
-import operator
 from requests import get
 
 
@@ -110,25 +109,25 @@ class Blockchain:
         url = "http://{}/peers".format(address)
         result = get(url)
         if result.status_code != 200:
-            print("unable to connect the bootstrap server")
+            print("Unable to connect the bootstrap server")
             return
         peers = result.json()["peers"]
         for peer in peers:
             self.add_node(peer)
         
-        results = self.broadcast(self.peers, self.ip, "addNode")
+        results = self.broadcast(self._peers, self.ip, "addNode")
         address = get_address_best_hash(results)
 
     def add_node(self, peer):
         new_peer = Peer(peer)
-        self.peers.append(new_peer)
+        self._peers.append(new_peer)
 
     def get_ip(self):
         return self.ip
 
     def put(self, key, value, origin):
         transaction = Transaction(key, value, origin)
-        self.add_transaction(self, transaction)
+        self.add_transaction(transaction)
         
     def broadcast(self, peers, message, message_type):
         """ 
@@ -293,7 +292,7 @@ node = Blockchain(2)
 def get_chain():
     chain_data = []
     for block in node.get_blocks():
-        chain_data.append(block.__dict__)
+        chain_data.append(json.dumps(block.__dict__, sort_keys=True, cls=TransactionEncoder))
     return json.dumps({"length": len(chain_data),
                        "chain": chain_data})
 
