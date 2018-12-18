@@ -50,9 +50,8 @@ class Block:
         self._nonce = nonce
 
     def proof(self):
-        # TODO: Proof
         """Return the proof of the current block."""
-        raise NotImplementedError
+        return self.compute_hash.startswith('0' * self._difficulty)
 
     def get_transactions(self):
         """Returns the list of transactions associated with this block."""
@@ -160,6 +159,7 @@ class Blockchain:
 
         for block in self._blocks:
             print(block.get_transactions())
+    
     def add_node(self, peer):
         new_peer = Peer(peer)
         self._peers.append(new_peer)
@@ -313,11 +313,14 @@ class Blockchain:
         blocks correct?
         """
         previous_hash = self._blocks[-1].get_previous_hash
-        it = -2
+        it = -1
         while(previous_hash != "0")
-            if(previous_hash != self._blocks[it].compute_hash())
+            #Check if proof is valid and if previous hashes match
+            if(previous_hash != self._blocks[it-1].compute_hash() or
+                not self._blocks[it].proof()):
+                
                 return False
-            it -= 1
+            it = it - 1
             previous_hash = self._blocks[it].get_previous_hash()
         
         return True
