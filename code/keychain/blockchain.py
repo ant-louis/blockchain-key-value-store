@@ -7,12 +7,30 @@ import time
 import datetime
 import json
 import random
+import argparse
 import sys
 import operator
 from hashlib import sha256
 from flask import Flask, request
-from requests import get
+from requests import get, post
 
+
+def parse_arguments():
+    parser = argparse.ArgumentParser(
+        "KeyChain - An overengineered key-value store "
+        "with version control, powered by fancy linked-lists.")
+
+    parser.add_argument("--miner", type=bool, default=False, nargs='?',
+                        const=True, help="Starts the mining procedure.")
+    parser.add_argument("--bootstrap", type=str, default=None,
+                        help="Sets the address of the bootstrap node.")
+    parser.add_argument("--difficulty", type=int, default=5,
+                        help="Sets the difficulty of Proof of Work, only has "
+                             "an effect with the `--miner` flag has been set.")
+    parser.add_argument("--port", type=int, default=5000)
+    arguments, _ = parser.parse_known_args()
+
+    return arguments
 
 class TransactionEncoder(json.JSONEncoder):
     def default(self, obj):
@@ -91,8 +109,8 @@ class Blockchain:
         self._block_to_confirm = None
         self._block_hash = None
 
-        self.ip = get('https://api.ipify.org').text
-
+        #self.ip = get('https://api.ipify.org').text
+        self.ip = "127.0.0.1:{}".format(parse_arguments().port)
 
         # Initialize the chain with the Genesis block.
         self._add_genesis_block()
@@ -105,33 +123,32 @@ class Blockchain:
         self._blocks.append(Block(0, [], time.time(), "0"))
 
     def _bootstrap(self, address):
-
+        print(address)
+        print(self.ip)
         if(address == self.ip):
             return
-        print("In bootstrap")
-        url = "http://{}:5000/peers".format(address)
+        url = "http://{}/peers".format(address)
         result = get(url)
-        print("after first get")
 
         if result.status_code != 200:
             print("Unable to connect the bootstrap server")
             return
         peers = result.json()["peers"]
-        print(peers)
         for peer in peers:
             self.add_node(peer)
-        
+        self.add_node(address)
+
+        print(self._peers)
         results = self.broadcast(self._peers, self.ip, "addNode")
+        print(results)
         address = get_address_best_hash(results)
-        
-        url = "http://{}:5000/peers".format(address)
+        url = "http://{}/blockchain".format(address)
         result = get(url)
         if result.status_code != 200:
             print("Unable to connect the load blockchain")
             return
-        
         chain = result.json()["chain"]
-        print(chain)
+        print(chain[1][6])
         print(type(chain))
 
 
@@ -152,9 +169,12 @@ class Blockchain:
         """
         results = {}
         for peer in peers:
-            url = "http://{}:5000/message".format(peer.get_address())
-            results[peer.get_address()] = get(url, data=json.dumps({"type": message_type, "message": message})).json()
-        
+            url = "http://{}/message".format(peer.get_address())
+            response = get(url, params={"type": message_type, "message": message})
+            if response.status_code != 200:
+                print("Unable to reach a node")
+                return
+            results[peer.get_address()] = response.json()
         return results
 
     def get_blocks(self):
@@ -309,11 +329,10 @@ def get_address_best_hash(hashes):
 app = Flask(__name__)
 print("after app run")
 
-node = Blockchain(2,"139.165.31.15")
-transaction = Transaction("Test", 123, 666)
+node = Blockchain(2,"127.0.0.1:5000")
+transaction = Transaction("Test", 121, 676)
 node.add_transaction(transaction)
 node.mine()
-app.run(debug=True, port=5000)
 
 
 
@@ -336,16 +355,17 @@ def boostrap():
 def add_node():
     address = request.get_json()["address"]
     node.add_node(address)
-    return json.dumps({"last_hash": node.get_last_hash()})
+    
 
 
-@app.route("/message", methods=['POST'])
+@app.route("/message")
 def message_hanler():
-    message_type = request.get_json()["message_type"]
-    message = request.get_json()["message"]
-
+    message_type = request.args.get('type')
+    message = request.args.get('message')
+    print(message)
     if(message_type == "addNode"):
         node.add_node(message)
+        return json.dumps(node.get_last_hash())
     elif():
         pass
     else:
@@ -363,3 +383,6 @@ def put():
 @app.route("/peers")
 def get_peers():
     return json.dumps({"peers": node.get_peers()})
+
+
+app.run(debug=True, port=parse_arguments().port)
