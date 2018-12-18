@@ -28,8 +28,8 @@ class Storage:
         your blockchain. Depending whether or not the miner flag has
         been specified, you should allocate the mining process.
         """
-        self._blockchain = Blockchain()
-        raise NotImplementedError
+        self._blockchain = Blockchain(bootstrap, difficulty)
+        
 
     def put(self, key, value, block=True):
         """Puts the specified key and value on the Blockchain.
@@ -37,8 +37,8 @@ class Storage:
         The block flag indicates whether the call should block until the value
         has been put onto the blockchain, or if an error occurred.
         """
-        raise NotImplementedError
-        transaction = Transaction(...)
+    
+        transaction = Transaction(key, value, id)
         self._blockchain.add_transaction(self, transaction)
         callback = Callback(transaction, self._blockchain)
         if block:
@@ -46,17 +46,31 @@ class Storage:
 
         return callback
 
-    def retrieve(self, key):
-        """Searches the most recent value of the specified key.
+    # def retrieve(self, key):
+    #     """Searches the most recent value of the specified key.
 
-        -> Search the list of blocks in reverse order for the specified key,
-        or implement some indexing schemes if you would like to do something
-        more efficient.
-        """
-        raise NotImplementedError
+    #     -> Search the list of blocks in reverse order for the specified key,
+    #     or implement some indexing schemes if you would like to do something
+    #     more efficient.
+    #     """
+    #     value = None
 
-    def retrieve_all(self, key):
-        """Retrieves all values associated with the specified key on the
-        complete blockchain.
-        """
-        raise NotImplementedError
+    #     for block in reversed(_blockchain):
+    #         for transaction in reversed(_blockchain.get_transactions()):
+    #             if transaction.key == key:
+    #                 value = transaction.value
+
+    #     return value
+
+    # def retrieve_all(self, key):
+    #     """Retrieves all values associated with the specified key on the
+    #     complete blockchain.
+    #     """
+    #     values = []
+
+    #     for block in reversed(_blockchain):
+    #         for transaction in reversed(_blockchain.get_transactions()):
+    #             if transaction.key == key:
+    #                 values.append(transaction.value)
+
+    #     return values
