@@ -67,11 +67,11 @@ class Storage:
             print("Unable to connect the bootstrap server")
             return
         
-        callback = Callback()
-        if block:
-            callback.wait()
+        # callback = Callback()
+        # if block:
+        #     callback.wait()
 
-        return callback
+        # return callback
 
     def retrieve(self, key):
         """Searches the most recent value of the specified key.
@@ -87,13 +87,13 @@ class Storage:
             print("Unable to connect the load blockchain")
             return
         chain = result.json()["chain"]
-        
 
         value = None
-        for block in reversed(self.get_blocks()):
-            for transaction in reversed(block.get_transactions()):
-                if transaction.key == key:
-                    value = transaction.value
+        for block in reversed(chain):
+            block = json.loads(block)
+            for t in reversed(block["_transactions"]):
+                if t["key"] == key:
+                    value = t["value"]
         return value
 
     def retrieve_all(self, key):
@@ -107,11 +107,11 @@ class Storage:
             print("Unable to connect the load blockchain")
             return
         chain = result.json()["chain"]
-        
 
         values = []
-        for block in reversed(self.get_blocks()):
-            for transaction in reversed(block.get_transactions()):
-                if transaction.key == key:
-                    values.append(transaction.value)
+        for block in reversed(chain):
+            block = json.loads(block)
+            for t in reversed(block["_transactions"]):
+                if t["key"] == key:
+                    values.append(t["value"])
         return values
