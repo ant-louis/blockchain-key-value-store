@@ -1,6 +1,7 @@
 from flask import Flask, request
 from blockchain import Blockchain
 import json
+import operator
 from requests import get
 
 class Node:
@@ -13,9 +14,9 @@ class Node:
     def get_chain(self):
         return self.blockchain
     
-    def bootstrap(self, boostrap_adress):
+    def bootstrap(self, boostrap_address):
 
-        url = "http://{}/peers".format(boostrap_adress)
+        url = "http://{}/peers".format(boostrap_address)
         result = get(url)
         if result.status_code != 200:
             print("unable to connect the bootstrap server")
@@ -25,11 +26,17 @@ class Node:
             self.add_node(peer)
         
         results = self.broadcast(self.peers, self.ip, "addNode")
+        address = get_address_best_hash(results)
         
+<<<<<<< HEAD
         
     def put(self, key, value, origin):
         transaction = Transaction(key, value, origin)
         self._blockchain.add_transaction(self, transaction)
+=======
+
+
+>>>>>>> 7e2188291c5400261c1bb7e0729a12f2bc9c7446
 
         
         
@@ -44,8 +51,8 @@ class Node:
         """
         results = {}
         for peer in peers:
-            url = "http://{}/message".format(peer.get_adress())
-            results[peer.get_adress()] = get(url, data=json.dumps({"type": message_type, "message": message})).json()
+            url = "http://{}/message".format(peer.get_address())
+            results[peer.get_address()] = get(url, data=json.dumps({"type": message_type, "message": message})).json()
         
         return results
     
@@ -63,8 +70,23 @@ class Peer:
         Can be extended if desired.
         """
         self._address = address
-    def get_adress(self):
+    def get_address(self):
         return self._address
+
+
+def get_address_best_hash(hashes):
+    results = {}
+    for hash in hashes.values():
+        if(hash in results):
+            results[hash] += 1
+        else:
+            results[hash] = 1
+    
+    best_hash = max(results.items(), key=operator.itemgetter(1))[0]
+    for address,hash in hashes.items():
+        if(best_hash == hash):
+            return address
+    return None
         
 
 app = Flask(__name__)
@@ -75,7 +97,7 @@ node = Node()
 def get_chain():
     blockchain = node.get_chain()
     chain_data = []
-    for block in blockchain.chain:
+    for block in blockchain.get_chain():
         chain_data.append(block.__dict__)
     return json.dumps({"length": len(chain_data),
                        "chain": chain_data})
@@ -83,14 +105,14 @@ def get_chain():
 
 @app.route("/bootstrap", methods=['POST'])
 def boostrap():
-    boostrap_adress = request.get_json()["bootstrap"]
-    node.bootstrap(boostrap_adress)
+    boostrap_address = request.get_json()["bootstrap"]
+    node.bootstrap(boostrap_address)
 
 
 @app.route("/addNode", methods=['POST'])
 def add_node():
-    adress = request.get_json()["adress"]
-    node.add_node(adress)
+    address = request.get_json()["address"]
+    node.add_node(address)
     return json.dumps({"last_hash": node.get_last_hash()})
 
 
