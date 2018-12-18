@@ -148,8 +148,9 @@ class Blockchain:
             print("Unable to connect the load blockchain")
             return
         chain = result.json()["chain"]
-        print(chain[1][6])
-        print(type(chain))
+        block1 = json.loads(chain[1])
+        print(block1["_transactions"][0]["value"])
+        print(type(block1))
 
 
     def add_node(self, peer):
