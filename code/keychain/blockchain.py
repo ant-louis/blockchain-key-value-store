@@ -21,14 +21,14 @@ class TransactionEncoder(json.JSONEncoder):
         return json.JSONEncoder.default(self, obj)
 
 class Block:
-    def __init__(self, index, transactions, timestamp, previous_hash):
+    def __init__(self, index, transactions, timestamp, previous_hash, nonce = 0):
         """Describe the properties of a block."""
 
         self._index = index
         self._transactions = transactions
         self._timestamp = timestamp
         self._previous_hash = previous_hash
-        self._nonce = 0
+        self._nonce = nonce
 
     def proof(self):
         """Return the proof of the current block."""
@@ -134,6 +134,12 @@ class Blockchain:
         print(chain)
         print(type(chain))
 
+        for block in chain:
+            self._blocks.append(Block(block.index, 
+                                        block.transactions, 
+                                        block.timestamp, 
+                                        block.previous_hash))            
+
 
     def add_node(self, peer):
         new_peer = Peer(peer)
@@ -199,6 +205,7 @@ class Blockchain:
             computed_hash = new_block.compute_hash()
 
             #If process gets a block confirmation request during mining procedure
+            #TODO: One node accepts block while the others are minign
             if (self._confirm_block and
                 self._block_hash and
                 self._block_to_confirm):
@@ -289,6 +296,7 @@ class Blockchain:
         Meaning, are the sequence of hashes, and the proofs of the
         blocks correct?
         """
+        #TODO: Do the method
         raise NotImplementedError
 
 def get_address_best_hash(hashes):
@@ -309,11 +317,11 @@ def get_address_best_hash(hashes):
 app = Flask(__name__)
 print("after app run")
 
-node = Blockchain(2,"139.165.31.15")
+node = Blockchain(2,"127.0.0.0")
 transaction = Transaction("Test", 123, 666)
 node.add_transaction(transaction)
 node.mine()
-app.run(debug=True, port=5000)
+app.run(host = "0.0.0.0", debug=True, port=5000)
 
 
 
