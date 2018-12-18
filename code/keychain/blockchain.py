@@ -33,20 +33,21 @@ def parse_arguments():
     return arguments
 
 class TransactionEncoder(json.JSONEncoder):
+
     def default(self, obj):
         if isinstance(obj, Transaction):
             return vars(obj)
         return json.JSONEncoder.default(self, obj)
 
 class Block:
-    def __init__(self, index, transactions, timestamp, previous_hash):
+    def __init__(self, index, transactions, timestamp, previous_hash, nonce = 0):
         """Describe the properties of a block."""
 
         self._index = index
         self._transactions = transactions
         self._timestamp = timestamp
         self._previous_hash = previous_hash
-        self._nonce = 0
+        self._nonce = nonce
 
     def proof(self):
         """Return the proof of the current block."""
@@ -152,6 +153,11 @@ class Blockchain:
         print(block1["_transactions"][0]["value"])
         print(type(block1))
 
+        for block in chain:
+            self._blocks.append(Block(block.index, 
+                                        block.transactions, 
+                                        block.timestamp, 
+                                        block.previous_hash))            
 
     def add_node(self, peer):
         new_peer = Peer(peer)
@@ -161,9 +167,11 @@ class Blockchain:
         return self.ip
 
     def put(self, key, value, origin):
+        """Puts the specified key and value on the Blockchain.
+        """
         transaction = Transaction(key, value, origin)
         self.add_transaction(transaction)
-        
+
     def broadcast(self, peers, message, message_type):
         """ 
         Best effort broadcast
@@ -220,6 +228,7 @@ class Blockchain:
             computed_hash = new_block.compute_hash()
 
             #If process gets a block confirmation request during mining procedure
+            #TODO: One node accepts block while the others are minign
             if (self._confirm_block and
                 self._block_hash and
                 self._block_to_confirm):
@@ -249,10 +258,9 @@ class Blockchain:
         self._block_to_confirm = block
         self._block_hash = block_hash
 
-    
     def mine(self):
-        """Implements the mining procedure."""
-
+        """Implements the mining procedure
+        """
         #No pending transactions
         if not self._pending_transactions:
             return False
@@ -288,7 +296,6 @@ class Blockchain:
         self._blocks.append(block)
         return True
 
-
     def _check_block(self, block, computed_hash):
         """
         Check the validity of the block before adding it
@@ -303,14 +310,15 @@ class Blockchain:
                 computed_hash.startswith('0' * self._difficulty) and 
                 computed_hash == block.compute_hash())
 
-
     def is_valid(self):
         """Checks if the current state of the blockchain is valid.
 
         Meaning, are the sequence of hashes, and the proofs of the
         blocks correct?
         """
+        #TODO: Do the method
         raise NotImplementedError
+
 
 def get_address_best_hash(hashes):
     results = {}
@@ -330,6 +338,7 @@ def get_address_best_hash(hashes):
 app = Flask(__name__)
 print("after app run")
 
+
 node = Blockchain(2,"127.0.0.1:5000")
 transaction = Transaction("Test", 121, 676)
 node.add_transaction(transaction)
@@ -345,19 +354,20 @@ def get_chain():
     return json.dumps({"length": len(chain_data),
                        "chain": chain_data})
 
-
-@app.route("/bootstrap", methods=['POST'])
+@app.route("/bootstrap")
 def boostrap():
     boostrap_address = request.get_json()["bootstrap"]
     node.bootstrap(boostrap_address)
 
+@app.route("/mine")
+def mine():
+    node.mine()
 
-@app.route("/addNode", methods=['POST'])
+@app.route("/addNode")
 def add_node():
     address = request.get_json()["address"]
     node.add_node(address)
     
-
 
 @app.route("/message")
 def message_hanler():
@@ -372,14 +382,12 @@ def message_hanler():
     else:
         pass
 
-
-@app.route("/put", methods=['POST'])
+@app.route("/put")
 def put():
     key = request.get_json()["key"]
     value = request.get_json()["value"]
     origin = request.get_json()["origin"]
     node.put(key, value, origin)
-
 
 @app.route("/peers")
 def get_peers():
