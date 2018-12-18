@@ -358,7 +358,7 @@ def get_chain():
 @app.route("/bootstrap")
 def boostrap():
     boostrap_address = request.get_json()["bootstrap"]
-    node.bootstrap(boostrap_address)
+    node._bootstrap(boostrap_address)
 
 @app.route("/mine")
 def mine():
