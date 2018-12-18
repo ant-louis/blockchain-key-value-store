@@ -9,18 +9,18 @@ import blockchain
 import json
 
 
-# class Callback:
-#     def __init__(self, transaction, chain):
-#         self._transaction = transaction
-#         self._chain = chain
+class Callback:
+    def __init__(self, transaction, chain):
+        self._transaction = transaction
+        self._chain = chain
 
-#     def wait(self):
-#         """Wait until the transaction appears in the blockchain."""
-#         raise NotImplementedError
+    def wait(self):
+        """Wait until the transaction appears in the blockchain."""
+        raise NotImplementedError
 
-#     def completed(self):
-#         """Polls the blockchain to check if the data is available."""
-#         raise NotImplementedError
+    def completed(self):
+        """Polls the blockchain to check if the data is available."""
+        raise NotImplementedError
 
 
 class Storage:
@@ -31,23 +31,35 @@ class Storage:
         been specified, you should allocate the mining process.
         """
         if miner:
-            self.ip = bootstrap
-            url = "http://{}:5000/bootstrap".format(self.ip)
-            result = get(url)
+            self._ip = bootstrap
+
+            # Bootstrap
+            result = get("http://{}:5000/bootstrap".format(self.get_ip()))
+            if result.status_code != 200:
+                print("Unable to connect the bootstrap server")
+                return
+            
+            # Mine
+            result = get("http://{}:5000/mine".format(self.get_ip()))
             if result.status_code != 200:
                 print("Unable to connect the bootstrap server")
                 return
         else:
-            self.ip = get('https://api.ipify.org').text
+            self._ip = get('https://api.ipify.org').text
+    
+    def get_ip(self):
+        """
+        Get the ip adress of the user.
+        """
+        return self._ip
         
-
     def put(self, key, value, block=True):
         """Puts the specified key and value on the Blockchain.
         The block flag indicates whether the call should block until the value
         has been put onto the blockchain, or if an error occurred.
         """
-        url = "http://{}:5000/put".format(self.ip)
-        result = get(url, data=json.dumps({"key": key, "value": value, "origin": self.ip})).json()
+        url = "http://{}:5000/put".format(self.get_ip())
+        result = get(url, data=json.dumps({"key": key, "value": value, "origin": self.get_ip()})).json()
         if result.status_code != 200:
             print("Unable to connect the bootstrap server")
             return
@@ -65,18 +77,35 @@ class Storage:
         or implement some indexing schemes if you would like to do something
         more efficient.
         """
-        url = "http://{}:5000/retrieve".format(self.ip)
-        result = get(url, data=json.dumps({"key": key})).json()
-        if result.status_code != 200:
+        # Get the blockchain
+        url = "http://{}:5000/blockchain".format(self.get_ip())
+        chain = get(url).json()
+        if chain.status_code != 200:
             print("Unable to connect the bootstrap server")
             return
+        
+
+        value = None
+        for block in reversed(self.get_blocks()):
+            for transaction in reversed(block.get_transactions()):
+                if transaction.key == key:
+                    value = transaction.value
+        return value
 
     def retrieve_all(self, key):
         """Retrieves all values associated with the specified key on the
         complete blockchain.
         """
-        url = "http://{}:5000/retrieve_all".format(self.ip)
-        result = get(url, data=json.dumps({"key": key})).json()
-        if result.status_code != 200:
+        # Get the blockchain
+        url = "http://{}:5000/blockchain".format(self.get_ip())
+        chain = get(url).json()
+        if chain.status_code != 200:
             print("Unable to connect the bootstrap server")
             return
+
+        values = []
+        for block in reversed(self.get_blocks()):
+            for transaction in reversed(block.get_transactions()):
+                if transaction.key == key:
+                    values.append(transaction.value)
+        return values

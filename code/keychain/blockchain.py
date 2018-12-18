@@ -145,30 +145,6 @@ class Blockchain:
         transaction = Transaction(key, value, origin)
         self.add_transaction(transaction)
 
-    def retrieve(self, key):
-        """Searches the most recent value of the specified key.
-        -> Search the list of blocks in reverse order for the specified key,
-        or implement some indexing schemes if you would like to do something
-        more efficient.
-        """
-        value = None
-        for block in reversed(self._blocks):
-            for transaction in reversed(block.get_transactions()):
-                if transaction.key == key:
-                    value = transaction.value
-        return value
-    
-    def retrieve_all(self, key):
-        """Retrieves all values associated with the specified key on the
-        complete blockchain.
-        """
-        values = []
-        for block in reversed(self._blocks):
-            for transaction in reversed(block.get_transactions()):
-                if transaction.key == key:
-                    values.append(transaction.value)
-        return values
-
     def broadcast(self, peers, message, message_type):
         """ 
         Best effort broadcast
@@ -248,10 +224,9 @@ class Blockchain:
         self._block_to_confirm = block
         self._block_hash = block_hash
 
-    
     def mine(self):
-        """Implements the mining procedure."""
-
+        """Implements the mining procedure
+        """
         #No pending transactions
         if not self._pending_transactions:
             return False
@@ -287,7 +262,6 @@ class Blockchain:
         self._blocks.append(block)
         return True
 
-
     def _check_block(self, block, computed_hash):
         """
         Check the validity of the block before adding it
@@ -302,7 +276,6 @@ class Blockchain:
                 computed_hash.startswith('0' * self._difficulty) and 
                 computed_hash == block.compute_hash())
 
-
     def is_valid(self):
         """Checks if the current state of the blockchain is valid.
 
@@ -310,6 +283,7 @@ class Blockchain:
         blocks correct?
         """
         raise NotImplementedError
+
 
 def get_address_best_hash(hashes):
     results = {}
@@ -345,19 +319,20 @@ def get_chain():
     return json.dumps({"length": len(chain_data),
                        "chain": chain_data})
 
-
 @app.route("/bootstrap")
 def boostrap():
     boostrap_address = request.get_json()["bootstrap"]
     node.bootstrap(boostrap_address)
 
+@app.route("/mine")
+def mine():
+    node.mine()
 
 @app.route("/addNode")
 def add_node():
     address = request.get_json()["address"]
     node.add_node(address)
     return json.dumps({"last_hash": node.get_last_hash()})
-
 
 @app.route("/message")
 def message_hanler():
@@ -377,18 +352,3 @@ def put():
     value = request.get_json()["value"]
     origin = request.get_json()["origin"]
     node.put(key, value, origin)
-
-@app.route("/retrieve")
-def retrieve():
-    key = request.get_json()["key"]
-    node.retrieve(key)
-
-@app.route("/retrieve_all")
-def retrieve_all():
-    key = request.get_json()["key"]
-    node.retrieve_all(key)
-
-
-
-
-
