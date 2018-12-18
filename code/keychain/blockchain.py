@@ -50,6 +50,7 @@ class Block:
         self._nonce = nonce
 
     def proof(self):
+        # TODO: Proof
         """Return the proof of the current block."""
         raise NotImplementedError
 
@@ -106,7 +107,7 @@ class Blockchain:
         self._difficulty = difficulty
 
         #Block confirmation request
-        self._confirm_block = False #B lock request flag
+        self._confirm_block = False #Block request flag
         self._block_to_confirm = None
         self._block_hash = None
 
@@ -188,6 +189,7 @@ class Blockchain:
         return self._blocks[-1].compute_hash()
 
     def get_peers(self):
+        """Return all the peers of the current node"""
         return self._peers
 
     def difficulty(self):
@@ -309,8 +311,15 @@ class Blockchain:
         Meaning, are the sequence of hashes, and the proofs of the
         blocks correct?
         """
-        #TODO: Do the method
-        raise NotImplementedError
+        previous_hash = self._blocks[-1].get_previous_hash
+        it = -2
+        while(previous_hash != "0")
+            if(previous_hash != self._blocks[it].compute_hash())
+                return False
+            it -= 1
+            previous_hash = self._blocks[it].get_previous_hash()
+        
+        return True
 
 
 def get_address_best_hash(hashes):
