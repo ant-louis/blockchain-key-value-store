@@ -107,7 +107,7 @@ class Blockchain:
 
     def bootstrap(self, address):
 
-        url = "http://{}/peers".format(address)
+        url = "http://{}:5000/peers".format(address)
         result = get(url)
         if result.status_code != 200:
             print("unable to connect the bootstrap server")
@@ -118,6 +118,15 @@ class Blockchain:
         
         results = self.broadcast(self.peers, self.ip, "addNode")
         address = get_address_best_hash(results)
+        
+        url = "http://{}:5000/peers".format(address)
+        result = get(url)
+        if result.status_code != 200:
+            print("unable to connect the load blockchain")
+            return
+        
+        chain = result.json()["chain"]
+
 
     def add_node(self, peer):
         new_peer = Peer(peer)
@@ -136,7 +145,7 @@ class Blockchain:
         """
         results = {}
         for peer in peers:
-            url = "http://{}/message".format(peer.get_address())
+            url = "http://{}:5000/message".format(peer.get_address())
             results[peer.get_address()] = get(url, data=json.dumps({"type": message_type, "message": message})).json()
         
         return results
