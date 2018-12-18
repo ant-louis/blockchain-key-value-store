@@ -105,6 +105,9 @@ class Blockchain:
         self._blocks.append(Block(0, [], time.time(), "0"))
 
     def _bootstrap(self, address):
+
+        if(address == "127.0.0.1"):
+            return
         print("In bootstrap")
         url = "http://{}:5000/peers".format(address)
         result = get(url)
