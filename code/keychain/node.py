@@ -28,15 +28,10 @@ class Node:
         results = self.broadcast(self.peers, self.ip, "addNode")
         address = get_address_best_hash(results)
         
-<<<<<<< HEAD
         
     def put(self, key, value, origin):
         transaction = Transaction(key, value, origin)
         self._blockchain.add_transaction(self, transaction)
-=======
-
-
->>>>>>> 7e2188291c5400261c1bb7e0729a12f2bc9c7446
 
         
         
