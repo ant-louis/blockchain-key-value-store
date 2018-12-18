@@ -74,12 +74,12 @@ class Peer:
         return self._address
 
 class Blockchain:
-    def __init__(self, difficulty):
+    def __init__(self, difficulty, bootstrap_address):
         """The bootstrap address serves as the initial entry point of
         the bootstrapping procedure. In principle it will contact the specified
         address, download the peerlist, and start the bootstrapping procedure.
         """
-
+        print("in init")
         # Initialize the properties.
         self._blocks = []
         self._peers = []
@@ -97,21 +97,24 @@ class Blockchain:
         # Initialize the chain with the Genesis block.
         self._add_genesis_block()
 
-        # # Bootstrap the chain with the specified bootstrap address.
-        # self._bootstrap(bootstrap)
+        # Bootstrap the chain with the specified bootstrap address.
+        self._bootstrap(bootstrap_address)
 
     def _add_genesis_block(self):
         """Adds the genesis block to your blockchain."""
         self._blocks.append(Block(0, [], time.time(), "0"))
 
-    def bootstrap(self, address):
-
+    def _bootstrap(self, address):
+        print("In bootstrap")
         url = "http://{}:5000/peers".format(address)
         result = get(url)
+        print("after first get")
+
         if result.status_code != 200:
             print("Unable to connect the bootstrap server")
             return
         peers = result.json()["peers"]
+        print(peers)
         for peer in peers:
             self.add_node(peer)
         
@@ -121,10 +124,12 @@ class Blockchain:
         url = "http://{}:5000/peers".format(address)
         result = get(url)
         if result.status_code != 200:
-            print("unable to connect the load blockchain")
+            print("Unable to connect the load blockchain")
             return
         
         chain = result.json()["chain"]
+        print(chain)
+        print(type(chain))
 
 
     def add_node(self, peer):
@@ -150,9 +155,11 @@ class Blockchain:
         return results
 
     def get_blocks(self):
+        """ Return all blocks from the chain"""
         return self._blocks
 
     def get_last_hash(self):
+        """Return the hash of the last block"""
         return self._blocks[-1].compute_hash()
 
     def difficulty(self):
@@ -294,8 +301,15 @@ def get_address_best_hash(hashes):
 
 
 app = Flask(__name__)
+print("after app run")
 
-node = Blockchain(2)
+node = Blockchain(2,"127.0.0.1")
+transaction = Transaction("Test", 123, 666)
+node.add_transaction(transaction)
+node.mine()
+app.run(debug=True, port=5000)
+
+
 
 @app.route("/blockchain")
 def get_chain():
@@ -343,8 +357,3 @@ def put():
 
 
 
-if __name__ == '__main__':
-    transaction = Transaction("Test", 123, 666)
-    node.add_transaction(transaction)
-    node.mine()
-    app.run(debug=True, port=5000)
