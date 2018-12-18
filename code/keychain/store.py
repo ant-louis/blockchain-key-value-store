@@ -19,21 +19,15 @@ import node.py
 
 class Storage:
     
-    id = 0  # Class variable for user id
+    
 
     def __init__(self, bootstrap, miner):
 
-        # Initialize user id
-        id += 1
-        self.origin = id
+        
 
         if miner:
             # Bootstrap
-            url = "http://{}/bootstrap".format(bootstrap)
-            result = get(url)
-            if result.status_code != 200:
-                print("unable to connect the bootstrap server")
-                return
+            
             
         else:
 
@@ -45,11 +39,7 @@ class Storage:
         The block flag indicates whether the call should block until the value
         has been put onto the blockchain, or if an error occurred.
         """
-        url = "http://{}/put".format(key, value, self.origin)
-        result = request.get(url)
-        if result.status_code != 200:
-            print("unable to connect the bootstrap server")
-            return
+        
     
         
         # callback = Callback(transaction, self._blockchain)
@@ -65,11 +55,7 @@ class Storage:
         or implement some indexing schemes if you would like to do something
         more efficient.
         """
-        url = "http://{}/retrieve".format(key)
-        result = request.get(url)
-        if result.status_code != 200:
-            print("unable to connect the bootstrap server")
-            return
+        
 
         
 
@@ -77,11 +63,7 @@ class Storage:
         """Retrieves all values associated with the specified key on the
         complete blockchain.
         """
-        url = "http://{}/retrieve_all".format(key)
-        result = request.get(url)
-        if result.status_code != 200:
-            print("unable to connect the bootstrap server")
-            return
+        
 
 
 
