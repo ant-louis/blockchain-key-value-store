@@ -98,7 +98,6 @@ class Blockchain:
         the bootstrapping procedure. In principle it will contact the specified
         address, download the peerlist, and start the bootstrapping procedure.
         """
-        print("in init")
         # Initialize the properties.
         self._blocks = []
         self._peers = []
@@ -124,8 +123,6 @@ class Blockchain:
         self._blocks.append(Block(0, [], time.time(), "0"))
 
     def _bootstrap(self, address):
-        print(address)
-        print(self.ip)
         if(address == self.ip):
             return
         url = "http://{}/peers".format(address)
@@ -139,9 +136,8 @@ class Blockchain:
             self.add_node(peer)
         self.add_node(address)
 
-        print(self._peers)
+        print("Peers :",self._peers)
         results = self.broadcast(self._peers, self.ip, "addNode")
-        print(results)
         address = get_address_best_hash(results)
         url = "http://{}/blockchain".format(address)
         result = get(url)
@@ -149,14 +145,18 @@ class Blockchain:
             print("Unable to connect the load blockchain")
             return
         chain = result.json()["chain"]
-        print(chain[1][6])
-        print(type(chain))
 
         for block in chain:
-            self._blocks.append(Block(block.index, 
-                                        block.transactions, 
-                                        block.timestamp, 
-                                        block.previous_hash))            
+            block = json.loads(block)
+            transaction = []
+            if not block['_transactions']:
+                print(block["_transactions"])
+                transaction = Transaction(block["_transactions"])
+            self._blocks.append(Block(block["_index"], 
+                                        transaction, 
+                                        block["_timestamp"], 
+                                        block["_previous_hash"]))  
+            # print(self._blocks)
 
     def add_node(self, peer):
         new_peer = Peer(peer)
@@ -335,7 +335,6 @@ def get_address_best_hash(hashes):
 
 
 app = Flask(__name__)
-print("after app run")
 
 
 node = Blockchain(2,"127.0.0.1:5000")
@@ -369,7 +368,7 @@ def add_node():
     
 
 @app.route("/message")
-def message_hanler():
+def message_handler():
     message_type = request.args.get('type')
     message = request.args.get('message')
     print(message)
