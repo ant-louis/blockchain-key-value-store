@@ -38,7 +38,7 @@ class Storage:
         has been put onto the blockchain, or if an error occurred.
         """
         raise NotImplementedError
-        transaction = Transaction(...)
+        transaction = Transaction(key, value, id)
         self._blockchain.add_transaction(self, transaction)
         callback = Callback(transaction, self._blockchain)
         if block:
@@ -53,7 +53,9 @@ class Storage:
         or implement some indexing schemes if you would like to do something
         more efficient.
         """
-        raise NotImplementedError
+        for block in _blockchain:
+
+        
 
     def retrieve_all(self, key):
         """Retrieves all values associated with the specified key on the
