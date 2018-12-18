@@ -8,7 +8,11 @@ import datetime
 import json
 import random
 from hashlib import sha256
+from flask import Flask, request
 import sys
+import json
+import operator
+from requests import get
 
 
 class TransactionEncoder(json.JSONEncoder):
@@ -67,7 +71,8 @@ class Peer:
         Can be extended if desired.
         """
         self._address = address
-
+    def get_address(self):
+        return self._address
 
 class Blockchain:
     def __init__(self, difficulty):
@@ -87,6 +92,8 @@ class Blockchain:
         self._block_to_confirm = None
         self._block_hash = None
 
+        self.ip = get('https://api.ipify.org').text
+
 
         # Initialize the chain with the Genesis block.
         self._add_genesis_block()
@@ -98,10 +105,41 @@ class Blockchain:
         """Adds the genesis block to your blockchain."""
         self._blocks.append(Block(0, [], time.time(), "0"))
 
-    def _bootstrap(self, address):
-        """Implements the bootstrapping procedure."""
-        peer = Peer(address)
-        raise NotImplementedError
+    def bootstrap(self, address):
+
+        url = "http://{}/peers".format(address)
+        result = get(url)
+        if result.status_code != 200:
+            print("unable to connect the bootstrap server")
+            return
+        peers = result.json()["peers"]
+        for peer in peers:
+            self.add_node(peer)
+        
+        results = self.broadcast(self.peers, self.ip, "addNode")
+        address = get_address_best_hash(results)
+
+    def add_node(self, peer):
+        new_peer = Peer(peer)
+        self.peers.append(new_peer)
+
+    def get_ip(self):
+        return self.ip
+
+    def put(self, key, value, origin):
+        transaction = Transaction(key, value, origin)
+        self.add_transaction(self, transaction)
+        
+    def broadcast(self, peers, message, message_type):
+        """ 
+        Best effort broadcast
+        """
+        results = {}
+        for peer in peers:
+            url = "http://{}/message".format(peer.get_address())
+            results[peer.get_address()] = get(url, data=json.dumps({"type": message_type, "message": message})).json()
+        
+        return results
 
     def get_blocks(self):
         return self._blocks
@@ -232,8 +270,73 @@ class Blockchain:
         """
         raise NotImplementedError
 
+def get_address_best_hash(hashes):
+    results = {}
+    for hash in hashes.values():
+        if(hash in results):
+            results[hash] += 1
+        else:
+            results[hash] = 1
+    
+    best_hash = max(results.items(), key=operator.itemgetter(1))[0]
+    for address,hash in hashes.items():
+        if(best_hash == hash):
+            return address
+    return None
+
+
+app = Flask(__name__)
+
+node = Blockchain(2)
+
+@app.route("/blockchain")
+def get_chain():
+    chain_data = []
+    for block in node.get_blocks():
+        chain_data.append(block.__dict__)
+    return json.dumps({"length": len(chain_data),
+                       "chain": chain_data})
+
+
+@app.route("/bootstrap", methods=['POST'])
+def boostrap():
+    boostrap_address = request.get_json()["bootstrap"]
+    node.bootstrap(boostrap_address)
+
+
+@app.route("/addNode", methods=['POST'])
+def add_node():
+    address = request.get_json()["address"]
+    node.add_node(address)
+    return json.dumps({"last_hash": node.get_last_hash()})
+
+
+@app.route("/message", methods=['POST'])
+def message_hanler():
+    message_type = request.get_json()["message_type"]
+    message = request.get_json()["message"]
+
+    if(message_type == "addNode"):
+        node.add_node(message)
+    elif():
+        pass
+    else:
+        pass
+
+
+@app.route("/put", methods=['POST'])
+def put():
+    key = request.get_json()["key"]
+    value = request.get_json()["value"]
+    origin = request.get_json()["origin"]
+    node.put(key, value, origin)
+
+
+
+
+
 if __name__ == '__main__':
-    myChain = Blockchain(2)
     transaction = Transaction("Test", 123, 666)
-    myChain.add_transaction(transaction)
-    myChain.mine()
+    node.add_transaction(transaction)
+    node.mine()
+    app.run(debug=True, port=5000)
