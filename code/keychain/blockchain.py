@@ -15,7 +15,7 @@ import copy
 from hashlib import sha256
 from flask import Flask, request
 from requests import get, post, exceptions
-# from broadcast import Broadcast, Peer
+from broadcast import Broadcast, Peer
 
 
 class TransactionEncoder(json.JSONEncoder):
@@ -70,17 +70,6 @@ class Transaction:
     #Overwriting
     def __eq__(self, other): 
         return self.__dict__ == other.__dict__
-
-class Peer:
-    def __init__(self, address):
-        """Address of the peer.
-
-        Can be extended if desired.
-        """
-        self._address = address
-
-    def get_address(self):
-        return self._address
 
 class Blockchain:
 
@@ -368,18 +357,3 @@ def get_address_best_hash(hashes):
             return address
 
     return None
-
-
-if __name__== '__main__':
-    node = Blockchain(6,"5000")
-    i = 0
-    while(True):
-        transaction1 = Transaction("Test",i,56)
-        node.add_transaction(transaction1)
-        transaction2 = Transaction("Turing",i,56)
-        node.add_transaction(transaction2)
-        time.sleep(2)
-        b_to_conf = Block(0, [json.dumps(transaction1.__dict__), json.dumps(transaction2.__dict__)], time.time(), node.get_last_hash())
-        node.confirm_block(b_to_conf, b_to_conf.compute_hash())
-
-        i += 10
