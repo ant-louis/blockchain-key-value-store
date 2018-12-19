@@ -47,6 +47,7 @@ app = Flask(__name__)
 
 node = Blockchain(2, parse_arguments().port)
 
+
 @app.route("/bootstrap")
 def boostrap():
     address = request.args.get("bootstrap")
@@ -58,8 +59,7 @@ def get_chain():
     chain_data = []
     for block in node.get_blocks():
         chain_data.append(json.dumps(block.__dict__, sort_keys=True, cls=TransactionEncoder))
-    return json.dumps({"length": len(chain_data),
-                    "chain": chain_data})
+    return json.dumps({"length": len(chain_data), "chain": chain_data})
 
 @app.route("/mine")
 def mine():
@@ -99,7 +99,7 @@ def get_peers():
 
 
 
-    return arguments
+
 
 if __name__ == "__main__":
     arguments = parse_arguments()
