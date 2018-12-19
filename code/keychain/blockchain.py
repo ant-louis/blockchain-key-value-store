@@ -97,17 +97,13 @@ class Blockchain:
 
         #Block confirmation request
         self._confirm_block = False #Block request flag
-        self._block_to_confirm = None
-        self._block_to_confirm_hash = None
-
+        self._blocks_to_confirm = []
+        self._blocks_to_confirm_hash = []
 
         self._add_genesis_block()
 
-
-
         #self.ip = get('https://api.ipify.org').text
         self.ip = "127.0.0.1:{}".format(port)
-
 
         #Creating mining thread
         print("Create mining thread")
@@ -149,13 +145,13 @@ class Blockchain:
 
         for block in chain:
             block = json.loads(block)
-            transaction = []
+            transactions = []
 
             for t in block["_transactions"]:
-                transaction.append(Transaction(t["key"], t["value"], t["origin"]))
+                transactions.append(Transaction(t["key"], t["value"], t["origin"]))
                 
         self._blocks.append(Block(block["_index"], 
-                                    transaction, 
+                                    transactions, 
                                     block["_timestamp"], 
                                     block["_previous_hash"]))  
         for block in self._blocks:
@@ -223,23 +219,24 @@ class Blockchain:
             #If process gets a block confirmation request during mining procedure
             #TODO: One node accepts block while the others are mining
             if (self._confirm_block and
-                self._block_to_confirm_hash and
-                self._block_to_confirm):
+                self._blocks_to_confirm_hash and
+                self._blocks_to_confirm):
 
                 print("Confirming an incoming block...")
-                if not self._check_block(self._block_to_confirm, self._block_to_confirm_hash):
+                if not self._check_block(self._blocks_to_confirm[-1], self._blocks_to_confirm_hash[-1]):
                     #Block is valid, we add it to the chain, stop mining
                     print("Adding block")
-                    self._add_block(self._block_to_confirm, self._block_to_confirm_hash)
+                    self._add_block(self._blocks_to_confirm[-1], self._blocks_to_confirm_hash[-1])
                     
                     return None
 
                 else:
                     print("Resume mining...")
                     #Block is not valid, we continue mining
-                    self._confirm_block = False
-                    self._block_to_confirm_hash = None
-                    self._block_to_confirm = None
+                    self._blocks_to_confirm.pop()
+                    self._blocks_to_confirm_hash.pop()
+                    if self._blocks_to_confirm:
+                        self._confirm_block = False
 
         return computed_hash
 
@@ -253,8 +250,8 @@ class Blockchain:
         block_hash: sha256 hash of the Block object
         """
         self._confirm_block = True
-        self._block_to_confirm = block
-        self._block_to_confirm_hash = block_hash
+        self._blocks_to_confirm.append(block)
+        self._blocks_to_confirm_hash.append(block_hash)
 
     def mine(self):
         """Implements the mining procedure
@@ -282,9 +279,11 @@ class Blockchain:
                 if proof is None:
                     print("Block confirmed by other node")
 
+                    foreign_block = self._blocks_to_confirm.pop()
+                    self._blocks_to_confirm_hash.pop()
                     local_block_tr = new_block.get_transactions()
 
-                    for tr in [json.loads(t) for t in self._block_to_confirm._transactions]:
+                    for tr in [json.loads(t) for t in foreign_block._transactions]:
                         tr_obj = Transaction(tr["key"], tr["value"], tr["origin"]) 
                         
                         # Remove the incoming block's transaction from the pool
@@ -299,9 +298,9 @@ class Blockchain:
                     self._pending_transactions.extend(local_block_tr)
                     
                     #Reset block confirmation fields
-                    self._confirm_block = False
-                    self._block_to_confirm_hash = None
-                    self._block_to_confirm = None
+                    if self._blocks_to_confirm:
+                        self._confirm_block = False
+                        
 
                 elif self._check_block(new_block, proof):
                     #Add block to chain
@@ -309,8 +308,6 @@ class Blockchain:
                 else:
                     #Computed proof is not correct, add the transactions back in the pool
                     self._pending_transactions.extend(input_tr)
-
-
 
     def _add_block(self,block, computed_hash):
         """
