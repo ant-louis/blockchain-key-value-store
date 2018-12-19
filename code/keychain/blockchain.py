@@ -11,9 +11,11 @@ import argparse
 import sys
 import operator
 from hashlib import sha256
-from flask import Flask, request
+# from flask import Flask, request
 from requests import get, post
 import threading
+from time import sleep
+import copy 
 
 def parse_arguments():
     parser = argparse.ArgumentParser(
@@ -121,6 +123,13 @@ class Blockchain:
         # # Bootstrap the chain with the specified bootstrap address.
         # self._bootstrap(bootstrap_address)
 
+
+        #Creating mining thread
+        print("Create mining thread")
+        mining_thread = threading.Thread(target = self.mine)
+        mining_thread.start()
+
+
     def _add_genesis_block(self):
         """Adds the genesis block to your blockchain."""
         self._blocks.append(Block(0, [], time.time(), "0"))
@@ -208,20 +217,9 @@ class Blockchain:
         of transactions, and attempt to mine a block with those.
         """
 
-        print("Added transaction" ,transaction)
+        print("Added transaction" ,transaction.__dict__)
         self._pending_transactions.append(transaction)
 
-        print("Active threads:", threading.active_count())
-        #Only one thread is reserved for mining
-        while threading.active_count() == 1:
-            mining_thread = threading.Thread(target = self.mine)
-            print("Create mining thread")
-            mining_thread.start()
-            mining_thread.join() #Wait for mining to terminate
-            print("Active threads:", threading.active_count())
-
-            print("Thread terminated")
-        
 
         #TODO: Broadcast transaction to network
         
@@ -243,7 +241,7 @@ class Blockchain:
             computed_hash = new_block.compute_hash()
 
             #If process gets a block confirmation request during mining procedure
-            #TODO: One node accepts block while the others are minign
+            #TODO: One node accepts block while the others are mining
             if (self._confirm_block and
                 self._block_to_confirm_hash and
                 self._block_to_confirm):
@@ -276,27 +274,29 @@ class Blockchain:
     def mine(self):
         """Implements the mining procedure
         """
+        while(True):
+            if(not self._pending_transactions):
+                time.sleep(1)
+            else:
+                last_block = self._blocks[-1]
 
-        last_block = self._blocks[-1]
+                nb_transactions = len(self._pending_transactions)
+                new_block = Block(index=last_block._index + 1,
+                                transactions=copy.deepcopy(self._pending_transactions),
+                                timestamp=time.time(),
+                                previous_hash=last_block.compute_hash())
+                #Remove the transactions that were inserted into the block
+                del self._pending_transactions[:nb_transactions]
+                print("Processed {} transaction(s) in this block, {} pending".format(nb_transactions, len(self._pending_transactions)))
 
-        nb_transactions = len(self._pending_transactions)
-        new_block = Block(index=last_block._index + 1,
-                          transactions=self._pending_transactions,
-                          timestamp=time.time(),
-                          previous_hash=last_block.compute_hash())
+                print("Mining....")
+                proof = self._proof_of_work(new_block)
+                if proof is None:
+                    print("Block confirmed by other node")
+                else:
+                    #Add block to chain
+                    self._add_block(new_block, proof)
 
-        #Remove the transactions that were inserted into the block
-        del self._pending_transactions[:nb_transactions]
-        
-        print("Mining....")
-        proof = self._proof_of_work(new_block)
-        if proof is None:
-            print("Block confirmed by other node")
-            return False #Return from the thread
-
-        print("The hash of the block was :", proof)
-        block_add = self._add_block(new_block, proof)
-        return block_add #Return from the thread
 
     def _add_block(self,block, computed_hash):
         """
@@ -307,7 +307,7 @@ class Blockchain:
             print("Block not valid")
             return False
         self._blocks.append(block)
-        print("Block with ID {} added to the chain".format(block._index))
+        print("Block ID {} hash {} added to the chain".format(block._index, computed_hash))
         return True
 
     def _check_block(self, block, computed_hash):
@@ -421,18 +421,14 @@ class Blockchain:
 
 
 if __name__ == '__main__':
-    node = Blockchain(5)
-    transaction = Transaction("Test", 121, 676)
-    node.add_transaction(transaction)
-    # transaction = Transaction("Team", 55, 676)
-    # node.add_transaction(transaction)
-    # transaction = Transaction("Turing", 32, 676)
-    # node.add_transaction(transaction)
-    # transaction = Transaction("Gagnant", 87, 676)
-    # node.add_transaction(transaction)
 
-  
-    for b in node.get_blocks():
-        for t in b.get_transactions():
-            print(t)
+    node = Blockchain(2)
+    while(True):
+        transaction = Transaction("Test", 121, 676)
+        node.add_transaction(transaction)
+        transaction = Transaction("Team", 55, 676)
+        node.add_transaction(transaction)
+        sleep(2)
+
+    print(node.get_blocks())
     print("Blockchain is valid ?",node.is_valid())
