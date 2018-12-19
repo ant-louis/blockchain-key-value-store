@@ -13,7 +13,7 @@ import operator
 from hashlib import sha256
 from flask import Flask, request
 from requests import get, post, exceptions
-from broadcast import Broadcast, Peer
+from broadcast import Broadcast, send_to_one 
 
 class TransactionEncoder(json.JSONEncoder):
 
@@ -84,7 +84,7 @@ class Blockchain:
         """
         # Initialize the properties.
         self._blocks = []
-        self.broadcast = Broadcast([])
+        
         self._pending_transactions = []
         self._difficulty = difficulty
 
@@ -94,40 +94,42 @@ class Blockchain:
         self._block_hash = None
 
         #self.ip = get('https://api.ipify.org').text
-        self.ip = "127.0.0.1:{}".format(port)
+        self._ip = "127.0.0.1:{}".format(port)
+        self.broadcast = Broadcast([], self._ip)
 
     def _add_genesis_block(self):
         """Adds the genesis block to your blockchain."""
         self._blocks.append(Block(0, [], time.time(), "0"))
 
     def bootstrap(self, address):
-        if(address == self.ip):
+        if(address == self.get_ip()):
             # Initialize the chain with the Genesis block.
             self._add_genesis_block()
             return
-        url = "http://{}/peers".format(address)
-        result = get(url)
-
-        if result.status_code != 200:
-            print("Unable to connect the bootstrap server")
+        # Get the list of peer from bootstrap node
+        try:
+            result = send_to_one(address, "peers")
+        except exceptions.RequestException:
+            print("Unable to bootstrap (connection faild to bootstrap node)")
             return
         peers = result.json()["peers"]
         for peer in peers:
             self.add_node(peer)
         self.add_node(address)
+        if(self.get_ip() in peers):
+            peers.remove(self.get_ip())
+        
 
-        if(self.ip in peers):
-            peers.remove(self.ip)
-
-        results = self.broadcast.send("addNode",self.ip)
-        address = get_address_best_hash(results)
-        url = "http://{}/blockchain".format(address)
-        result = get(url)
-        if result.status_code != 200:
-            print("Unable to connect the load blockchain")
-            return
+        # Get all the blocks from a non-corrupted node
+        hashes = {}
+        for peer in self.get_peers():
+            hashes[peer] = send_to_one(peer, "addNode", {"address" : self.get_ip()})
+        if hashes:
+            address = get_address_best_hash(hashes)
+        result = send_to_one(address, "blockchain")
         chain = result.json()["chain"]
 
+        # Reconstruct the chain
         for block in chain:
             block = json.loads(block)
             transaction = []
@@ -139,14 +141,14 @@ class Blockchain:
                                     transaction, 
                                     block["_timestamp"], 
                                     block["_previous_hash"]))  
-        for block in self._blocks:
-            print(block.get_transactions())
+        
+        return
 
     def add_node(self, peer):
-        self.broadcast.add_peer(peer)
+        self.broadcast.add_peer(peer)   
 
     def get_ip(self):
-        return self.ip
+        return self._ip
 
     def put(self, key, value, origin):
         """Puts the specified key and value on the Blockchain.
@@ -164,6 +166,7 @@ class Blockchain:
 
     def get_peers(self):
         return self.broadcast.get_peers()
+
     def difficulty(self):
         """Returns the difficulty level."""
         return self._difficulty

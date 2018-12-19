@@ -64,23 +64,29 @@ def get_chain():
 @app.route("/mine")
 def mine():
     node.mine()
+    return json.dumps({"deliver": True})
 
 @app.route("/addNode")
 def add_node():
-    address = request.get_json()["address"]
+    address = request.args.get("address")
     node.add_node(address)
+    return json.dumps(node.get_last_hash())
     
-@app.route("/message")
+@app.route("/broadcast")
 def message_handler():
     message_type = request.args.get('type')
     message = request.args.get('message')
-    if(message_type == "addNode"):
-        node.add_node(message)
-        return json.dumps(node.get_last_hash())
-    elif():
+    sender = request.args.get('sender')
+    broadcast_deliver = node.broadcast.beb_deliver(message_type, message, sender)
+    if(not broadcast_deliver[0]):
+        return json.dumps({"deliver": True})
+    message_type, message, sender = broadcast_deliver[1]
+    if(message_type == "transaction"):
+        pass
+    elif(message_type == 'block'):
         pass
     else:
-        pass
+        return 
 
 @app.route("/put")
 def put():
@@ -88,18 +94,18 @@ def put():
     value = request.get_json()["value"]
     origin = request.get_json()["origin"]
     node.put(key, value, origin)
+    return json.dumps({"deliver": True})
 
 @app.route("/peers")
 def get_peers():
     peers = []
     for peer in node.get_peers():
-        peers.append(peer.get_address())
+        peers.append(peer)
     return json.dumps({"peers": peers})
 
-
-
-
-    return arguments
+@app.route("/heartbeat")
+def heartbreat():
+    return json.dumps({"deliver": True})
 
 if __name__ == "__main__":
     arguments = parse_arguments()
