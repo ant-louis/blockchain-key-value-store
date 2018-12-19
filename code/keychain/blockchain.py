@@ -3,7 +3,7 @@ Blockchain (stub).
 
 NB: Feel free to extend or modify.
 """
-from time import time, slepp
+import time
 import datetime
 import json
 import random
@@ -15,7 +15,7 @@ import copy
 from hashlib import sha256
 from flask import Flask, request
 from requests import get, post, exceptions
-from broadcast import Broadcast, Peer
+# from broadcast import Broadcast, Peer
 
 
 class TransactionEncoder(json.JSONEncoder):
@@ -53,7 +53,7 @@ class Block:
         block_string = json.dumps(self.__dict__, sort_keys=True, cls=TransactionEncoder)
         return sha256(block_string.encode()).hexdigest()
 
-    def change_nonce(self, random = False):
+    def _change_nonce(self, random = False):
         if(random):
             self._nonce = random.randint(1, sys.maxsize)
         else:
@@ -67,6 +67,9 @@ class Transaction:
         self.key = key
         self.value = value 
         self.origin = origin
+    #Overwriting
+    def __eq__(self, other): 
+        return self.__dict__ == other.__dict__
 
 class Peer:
     def __init__(self, address):
@@ -88,7 +91,7 @@ class Blockchain:
         """
         # Initialize the properties.
         self._blocks = []
-        self.broadcast = Broadcast([])
+        # self.broadcast = Broadcast([])
         self._pending_transactions = []
         self._difficulty = difficulty
 
@@ -180,6 +183,7 @@ class Blockchain:
 
     def get_peers(self):
         return self.broadcast.get_peers()
+
     def difficulty(self):
         """Returns the difficulty level."""
         return self._difficulty
@@ -199,6 +203,7 @@ class Blockchain:
         #TODO: Broadcast transaction to network
         
         return
+
     def _proof_of_work(self, new_block):
         """
         Implement the proof of work algorithm
@@ -212,7 +217,7 @@ class Blockchain:
 
         #Find the nonce that computes the right block hash
         while not computed_hash.startswith('0' * self._difficulty):
-            new_block.change_nonce()
+            new_block._change_nonce()
             computed_hash = new_block.compute_hash()
 
             #If process gets a block confirmation request during mining procedure
@@ -221,16 +226,16 @@ class Blockchain:
                 self._block_to_confirm_hash and
                 self._block_to_confirm):
 
-                if self._check_block(self._block_to_confirm, self._block_to_confirm_hash):
+                print("Confirming an incoming block...")
+                if not self._check_block(self._block_to_confirm, self._block_to_confirm_hash):
                     #Block is valid, we add it to the chain, stop mining
+                    print("Adding block")
                     self._add_block(self._block_to_confirm, self._block_to_confirm_hash)
-                    self._confirm_block = False
-                    self._block_to_confirm_hash = None
-                    self._block_to_confirm = None
                     
                     return None
 
                 else:
+                    print("Resume mining...")
                     #Block is not valid, we continue mining
                     self._confirm_block = False
                     self._block_to_confirm_hash = None
@@ -241,6 +246,11 @@ class Blockchain:
     def confirm_block(self, block, block_hash):
         """
         Confirm a block from another Node
+
+        Parameters:
+        ----------
+        block: Block object
+        block_hash: sha256 hash of the Block object
         """
         self._confirm_block = True
         self._block_to_confirm = block
@@ -249,17 +259,20 @@ class Blockchain:
     def mine(self):
         """Implements the mining procedure
         """
+
         while(True):
             if(not self._pending_transactions):
-                time.sleep(1)
+                time.sleep(1) #Wait before checking new transactions
             else:
                 last_block = self._blocks[-1]
-
-                nb_transactions = len(self._pending_transactions)
+                
+                input_tr = copy.deepcopy(self._pending_transactions)
+                nb_transactions = len(input_tr)
                 new_block = Block(index=last_block._index + 1,
-                                transactions=copy.deepcopy(self._pending_transactions),
+                                transactions=input_tr,
                                 timestamp=time.time(),
                                 previous_hash=last_block.compute_hash())
+
                 #Remove the transactions that were inserted into the block
                 del self._pending_transactions[:nb_transactions]
                 print("Processed {} transaction(s) in this block, {} pending".format(nb_transactions, len(self._pending_transactions)))
@@ -268,22 +281,43 @@ class Blockchain:
                 proof = self._proof_of_work(new_block)
                 if proof is None:
                     print("Block confirmed by other node")
-                else:
+
+                    local_block_tr = new_block.get_transactions()
+
+                    for tr in [json.loads(t) for t in self._block_to_confirm._transactions]:
+                        tr_obj = Transaction(tr["key"], tr["value"], tr["origin"]) 
+                        
+                        # Remove the incoming block's transaction from the pool
+                        if tr_obj in self._pending_transactions:
+                            self._pending_transactions.remove(tr_obj)
+                            
+                        #Remove the incoming block's transaction from the locally mined block
+                        if tr_obj in local_block_tr:
+                            local_block_tr.remove(tr_obj)
+                    
+                    #The transactions that were not added to the chain get put back in the pool
+                    self._pending_transactions.extend(local_block_tr)
+                    
+                    #Reset block confirmation fields
+                    self._confirm_block = False
+                    self._block_to_confirm_hash = None
+                    self._block_to_confirm = None
+
+                elif self._check_block(new_block, proof):
                     #Add block to chain
                     self._add_block(new_block, proof)
+                else:
+                    #Computed proof is not correct, add the transactions back in the pool
+                    self._pending_transactions.extend(input_tr)
+
 
 
     def _add_block(self,block, computed_hash):
         """
         Add a block to the blockchain
         """
-        #Check validity of block
-        if not self._check_block(block, computed_hash):
-            print("Block not valid")
-            return False
         self._blocks.append(block)
         print("Block ID {} hash {} added to the chain".format(block._index, computed_hash))
-        return True
 
     def _check_block(self, block, computed_hash):
         """
@@ -294,6 +328,11 @@ class Blockchain:
         #Get last block from blockchain
         last_block = self._blocks[-1]
         previous_hash = last_block.compute_hash()
+
+        # print("Previous hash",block.get_previous_hash())
+        # print("Previous hash computed",previous_hash)
+        # print("Hash",block.compute_hash())
+        # print("Computed hash",computed_hash)
         return (previous_hash == block.get_previous_hash() and 
                 computed_hash.startswith('0' * self._difficulty) and 
                 computed_hash == block.compute_hash())
@@ -332,3 +371,18 @@ def get_address_best_hash(hashes):
             return address
 
     return None
+
+
+if __name__== '__main__':
+    node = Blockchain(6,"5000")
+    i = 0
+    while(True):
+        transaction1 = Transaction("Test",i,56)
+        node.add_transaction(transaction1)
+        transaction2 = Transaction("Turing",i,56)
+        node.add_transaction(transaction2)
+        time.sleep(2)
+        b_to_conf = Block(0, [json.dumps(transaction1.__dict__), json.dumps(transaction2.__dict__)], time.time(), node.get_last_hash())
+        node.confirm_block(b_to_conf, b_to_conf.compute_hash())
+
+        i += 10
