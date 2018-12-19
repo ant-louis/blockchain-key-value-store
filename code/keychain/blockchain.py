@@ -15,7 +15,7 @@ import copy
 from hashlib import sha256
 from flask import Flask, request
 from requests import get, post, exceptions
-from broadcast import Broadcast, Peer
+from broadcast import Broadcast
 
 
 class TransactionEncoder(json.JSONEncoder):
@@ -146,48 +146,31 @@ class Blockchain:
         for block in self._blocks:
             print(block.get_transactions())
 
-    def add_node(self, peer):
-        self.broadcast.add_peer(peer)
 
-    def get_ip(self):
-        return self.ip
-
-    def put(self, key, value, origin):
-        """Puts the specified key and value on the Blockchain.
+    def _add_block(self,block, computed_hash):
         """
-        transaction = Transaction(key, value, origin)
-        self.add_transaction(transaction)
-
-    def get_blocks(self):
-        """ Return all blocks from the chain"""
-        return self._blocks
-
-    def get_last_hash(self):
-        """Return the hash of the last block"""
-        return self._blocks[-1].compute_hash()
-
-    def get_peers(self):
-        return self.broadcast.get_peers()
-
-    def difficulty(self):
-        """Returns the difficulty level."""
-        return self._difficulty
-
-    def add_transaction(self, transaction):
-        """Adds a transaction to your current list of transactions,
-        and broadcasts it to your Blockchain network.
-        
-        If the `mine` method is called, it will collect the current list
-        of transactions, and attempt to mine a block with those.
+        Add a block to the blockchain
         """
+        self._blocks.append(block)
+        print("Block ID {} hash {} added to the chain".format(block._index, computed_hash))
 
-        print("Added transaction" ,transaction.__dict__)
-        self._pending_transactions.append(transaction)
-
-
-        #TODO: Broadcast transaction to network
+    def _check_block(self, block, computed_hash):
+        """
+        Check the validity of the block before adding it
+        to the blockchain
+        """
         
-        return
+        #Get last block from blockchain
+        last_block = self._blocks[-1]
+        previous_hash = last_block.compute_hash()
+
+        # print("Previous hash",block.get_previous_hash())
+        # print("Previous hash computed",previous_hash)
+        # print("Hash",block.compute_hash())
+        # print("Computed hash",computed_hash)
+        return (previous_hash == block.get_previous_hash() and 
+                computed_hash.startswith('0' * self._difficulty) and 
+                computed_hash == block.compute_hash())
 
     def _proof_of_work(self, new_block):
         """
@@ -229,9 +212,45 @@ class Blockchain:
 
         return computed_hash
 
+    def add_node(self, peer):
+        self.broadcast.add_peer(peer)
+
+    def get_ip(self):
+        return self.ip
+
+    def get_blocks(self):
+        """ Return all blocks from the chain"""
+        return self._blocks
+
+    def get_last_hash(self):
+        """Return the hash of the last block"""
+        return self._blocks[-1].compute_hash()
+
+    def get_peers(self):
+        return self.broadcast.get_peers()
+
+    def difficulty(self):
+        """Returns the difficulty level."""
+        return self._difficulty
+
+    def add_transaction(self, transaction):
+        """Adds a transaction to your current list of transactions,
+        and broadcasts it to your Blockchain network.
+        
+        If the `mine` method is called, it will collect the current list
+        of transactions, and attempt to mine a block with those.
+        """
+
+        print("Added transaction" ,transaction.__dict__)
+        self._pending_transactions.append(transaction)
+
+        #TODO: Broadcast transaction to network
+        
+        return
+
     def confirm_block(self, block, block_hash):
         """
-        Confirm a block from another Node
+        Pass a block to be confirmed by the blockchain
 
         Parameters:
         ----------
@@ -243,8 +262,7 @@ class Blockchain:
         self._blocks_to_confirm_hash.append(block_hash)
 
     def mine(self):
-        """Implements the mining procedure
-        """
+        """Implements the mining procedure"""
 
         while(True):
             if(not self._pending_transactions):
@@ -297,31 +315,6 @@ class Blockchain:
                 else:
                     #Computed proof is not correct, add the transactions back in the pool
                     self._pending_transactions.extend(input_tr)
-
-    def _add_block(self,block, computed_hash):
-        """
-        Add a block to the blockchain
-        """
-        self._blocks.append(block)
-        print("Block ID {} hash {} added to the chain".format(block._index, computed_hash))
-
-    def _check_block(self, block, computed_hash):
-        """
-        Check the validity of the block before adding it
-        to the blockchain
-        """
-        
-        #Get last block from blockchain
-        last_block = self._blocks[-1]
-        previous_hash = last_block.compute_hash()
-
-        # print("Previous hash",block.get_previous_hash())
-        # print("Previous hash computed",previous_hash)
-        # print("Hash",block.compute_hash())
-        # print("Computed hash",computed_hash)
-        return (previous_hash == block.get_previous_hash() and 
-                computed_hash.startswith('0' * self._difficulty) and 
-                computed_hash == block.compute_hash())
 
     def is_valid(self):
         """Checks if the current state of the blockchain is valid.
