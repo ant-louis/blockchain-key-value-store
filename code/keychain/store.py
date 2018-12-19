@@ -3,11 +3,12 @@ KeyChain key-value store (stub).
 """
 from threading import Thread
 from time import sleep
-from keychain import Blockchain, Transaction
+from blockchain import Blockchain, Transaction
 from requests import get
 from blockchain_app import app
 import blockchain_app
 import json
+import argparse
 
 
 class Callback:
@@ -41,7 +42,6 @@ class Storage():
         your blockchain. Depending whether or not the miner flag has
         been specified, you should allocate the mining process.
         """
-
         if miner:
             # Set ip address
             Storage.port += 1
@@ -118,7 +118,7 @@ class Storage():
         url = "http://{}/blockchain".format(self._address)
         result = get(url)
         if result.status_code != 200:
-            print("Unable to retrievee values from the blockchain")
+            print("Unable to retrieve values from the blockchain")
             return
         chain = result.json()["chain"]
         

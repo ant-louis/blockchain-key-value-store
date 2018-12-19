@@ -1,4 +1,4 @@
-from blockchain import Blockchain
+from blockchain import Blockchain, Transaction, TransactionEncoder
 import time
 import datetime
 import json
@@ -27,25 +27,10 @@ def parse_arguments():
 
     return arguments
 
-class TransactionEncoder(json.JSONEncoder):
-
-    def default(self, obj):
-        if isinstance(obj, Transaction):
-            return vars(obj)
-        return json.JSONEncoder.default(self, obj)
-
-class Transaction:
-    def __init__(self, key, value, origin):
-        """A transaction, in our KV setting. A transaction typically involves
-        some key, value and an origin (the one who put it onto the storage).
-        """
-        self.key = key
-        self.value = value 
-        self.origin = origin
-
 app = Flask(__name__)
 
 node = Blockchain(2, parse_arguments().port)
+
 
 @app.route("/bootstrap")
 def boostrap():
@@ -58,8 +43,7 @@ def get_chain():
     chain_data = []
     for block in node.get_blocks():
         chain_data.append(json.dumps(block.__dict__, sort_keys=True, cls=TransactionEncoder))
-    return json.dumps({"length": len(chain_data),
-                    "chain": chain_data})
+    return json.dumps({"length": len(chain_data), "chain": chain_data})
 
 @app.route("/mine")
 def mine():
@@ -106,7 +90,7 @@ def get_peers():
 @app.route("/heartbeat")
 def heartbreat():
     return json.dumps({"deliver": True})
-
+    
 if __name__ == "__main__":
     arguments = parse_arguments()
     app.run(debug=True, port=arguments.port)

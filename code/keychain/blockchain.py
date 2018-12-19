@@ -10,6 +10,8 @@ import random
 import argparse
 import sys
 import operator
+import threading
+import copy 
 from hashlib import sha256
 from flask import Flask, request
 from requests import get, post, exceptions
@@ -32,9 +34,9 @@ class Block:
         self._previous_hash = previous_hash
         self._nonce = nonce
 
-    def proof(self):
+    def proof(self, difficulty):
         """Return the proof of the current block."""
-        return self.compute_hash.startswith('0' * self._difficulty)
+        return self.compute_hash().startswith('0' * difficulty)
 
     def get_transactions(self):
         """Returns the list of transactions associated with this block."""
@@ -50,7 +52,7 @@ class Block:
         block_string = json.dumps(self.__dict__, sort_keys=True, cls=TransactionEncoder)
         return sha256(block_string.encode()).hexdigest()
 
-    def change_nonce(self, random = False):
+    def _change_nonce(self, random = False):
         if(random):
             self._nonce = random.randint(1, sys.maxsize)
         else:
@@ -64,19 +66,12 @@ class Transaction:
         self.key = key
         self.value = value 
         self.origin = origin
-
-class Peer:
-    def __init__(self, address):
-        """Address of the peer.
-
-        Can be extended if desired.
-        """
-        self._address = address
-
-    def get_address(self):
-        return self._address
+    #Overwriting
+    def __eq__(self, other): 
+        return self.__dict__ == other.__dict__
 
 class Blockchain:
+
     def __init__(self, difficulty, port):
         """The bootstrap address serves as the initial entry point of
         the bootstrapping procedure. In principle it will contact the specified
@@ -84,77 +79,84 @@ class Blockchain:
         """
         # Initialize the properties.
         self._blocks = []
-        
-        self._pending_transactions = []
-        self._difficulty = difficulty
 
-        #Block confirmation request
-        self._confirm_block = False #Block request flag
-        self._block_to_confirm = None
-        self._block_hash = None
-
-        #self.ip = get('https://api.ipify.org').text
-        self._ip = "127.0.0.1:{}".format(port)
-        self.broadcast = Broadcast([], self._ip)
-
-    def _add_genesis_block(self):
-        """Adds the genesis block to your blockchain."""
-        self._blocks.append(Block(0, [], time.time(), "0"))
-
-    def bootstrap(self, address):
-        if(address == self.get_ip()):
-            # Initialize the chain with the Genesis block.
-            self._add_genesis_block()
-            return
-        # Get the list of peer from bootstrap node
-        try:
-            result = send_to_one(address, "peers")
-        except exceptions.RequestException:
-            print("Unable to bootstrap (connection faild to bootstrap node)")
-            return
-        peers = result.json()["peers"]
-        for peer in peers:
-            self.add_node(peer)
-        self.add_node(address)
-        if(self.get_ip() in peers):
-            peers.remove(self.get_ip())
-        
-
-        # Get all the blocks from a non-corrupted node
-        hashes = {}
-        for peer in self.get_peers():
-            hashes[peer] = send_to_one(peer, "addNode", {"address" : self.get_ip()})
-        if hashes:
-            address = get_address_best_hash(hashes)
-        result = send_to_one(address, "blockchain")
-        chain = result.json()["chain"]
-
-        # Reconstruct the chain
-        for block in chain:
-            block = json.loads(block)
-            transaction = []
-
-            for t in block["_transactions"]:
-                transaction.append(Transaction(t["key"], t["value"], t["origin"]))
-                
-        self._blocks.append(Block(block["_index"], 
-                                    transaction, 
-                                    block["_timestamp"], 
-                                    block["_previous_hash"]))  
-        
-        return
-
+        # self.broadcast = Broadcast([])
     def add_node(self, peer):
         self.broadcast.add_peer(peer)   
 
     def get_ip(self):
         return self._ip
 
-    def put(self, key, value, origin):
-        """Puts the specified key and value on the Blockchain.
+    def _add_block(self,block, computed_hash):
         """
-        transaction = Transaction(key, value, origin)
-        self.add_transaction(transaction)
+        Add a block to the blockchain
+        """
+        self._blocks.append(block)
+        print("Block ID {} hash {} added to the chain".format(block._index, computed_hash))
+
+    def _check_block(self, block, computed_hash):
+        """
+        Check the validity of the block before adding it
+        to the blockchain
+        """
+        
+        #Get last block from blockchain
+        last_block = self._blocks[-1]
+        previous_hash = last_block.compute_hash()
+
+        # print("Previous hash",block.get_previous_hash())
+        # print("Previous hash computed",previous_hash)
+        # print("Hash",block.compute_hash())
+        # print("Computed hash",computed_hash)
+        return (previous_hash == block.get_previous_hash() and 
+                computed_hash.startswith('0' * self._difficulty) and 
+                computed_hash == block.compute_hash())
+
+    def _proof_of_work(self, new_block):
+        """
+        Implement the proof of work algorithm
+        Also check for block confirmation request from another Node
+        """
+        #Reset nonce
+        new_block._nonce = 0
+
+        #Get the real hash of the block
+        computed_hash = new_block.compute_hash()
+
+        #Find the nonce that computes the right block hash
+        while not computed_hash.startswith('0' * self._difficulty):
+            new_block._change_nonce()
+            computed_hash = new_block.compute_hash()
+
+            #If process gets a block confirmation request during mining procedure
+            #TODO: One node accepts block while the others are mining
+            if (self._confirm_block and
+                self._blocks_to_confirm_hash and
+                self._blocks_to_confirm):
+
+                print("Confirming an incoming block...")
+                if not self._check_block(self._blocks_to_confirm[-1], self._blocks_to_confirm_hash[-1]):
+                    #Block is valid, we add it to the chain, stop mining
+                    print("Adding block")
+                    self._add_block(self._blocks_to_confirm[-1], self._blocks_to_confirm_hash[-1])
+                    
+                    return None
+
+                else:
+                    print("Resume mining...")
+                    #Block is not valid, we continue mining
+                    self._blocks_to_confirm.pop()
+                    self._blocks_to_confirm_hash.pop()
+                    if self._blocks_to_confirm:
+                        self._confirm_block = False
+
+        return computed_hash
+
+    def add_node(self, peer):
+        self.broadcast.add_peer(peer)
+
+    def get_ip(self):
+        return self.ip
 
     def get_blocks(self):
         """ Return all blocks from the chain"""
@@ -178,107 +180,81 @@ class Blockchain:
         If the `mine` method is called, it will collect the current list
         of transactions, and attempt to mine a block with those.
         """
+
+        print("Added transaction" ,transaction.__dict__)
         self._pending_transactions.append(transaction)
+
         #TODO: Broadcast transaction to network
-
-    def _proof_of_work(self, new_block):
-        """
-        Implement the proof of work algorithm
-        Also check for block confirmation request from another Node
-        """
-        #Reset nonce
-        new_block._nonce = 0
-
-        #Get the real hash of the block
-        computed_hash = new_block.compute_hash()
-
-        #Find the nonce that computes the right block hash
-        while not computed_hash.startswith('0' * self._difficulty):
-            new_block.change_nonce()
-            computed_hash = new_block.compute_hash()
-
-            #If process gets a block confirmation request during mining procedure
-            #TODO: One node accepts block while the others are minign
-            if (self._confirm_block and
-                self._block_hash and
-                self._block_to_confirm):
-
-                if self._check_block(self._block_to_confirm, self._block_hash):
-                    #Block is valid, we add it to the chain, stop mining
-                    self._add_block(self._block_to_confirm, self._block_hash)
-                    self._confirm_block = False
-                    self._block_hash = None
-                    self._block_to_confirm = None
-                    
-                    return None
-
-                else:
-                    #Block is not valid, we continue mining
-                    self._confirm_block = False
-                    self._block_hash = None
-                    self._block_to_confirm = None
-
-        return computed_hash
+        
+        return
 
     def confirm_block(self, block, block_hash):
         """
-        Confirm a block from another Node
+        Pass a block to be confirmed by the blockchain
+
+        Parameters:
+        ----------
+        block: Block object
+        block_hash: sha256 hash of the Block object
         """
         self._confirm_block = True
-        self._block_to_confirm = block
-        self._block_hash = block_hash
+        self._blocks_to_confirm.append(block)
+        self._blocks_to_confirm_hash.append(block_hash)
 
     def mine(self):
-        """Implements the mining procedure
-        """
-        #No pending transactions
-        if not self._pending_transactions:
-            return False
+        """Implements the mining procedure"""
 
-        last_block = self._blocks[-1]
+        while(True):
+            if(not self._pending_transactions):
+                time.sleep(1) #Wait before checking new transactions
+            else:
+                last_block = self._blocks[-1]
+                
+                input_tr = copy.deepcopy(self._pending_transactions)
+                nb_transactions = len(input_tr)
+                new_block = Block(index=last_block._index + 1,
+                                transactions=input_tr,
+                                timestamp=time.time(),
+                                previous_hash=last_block.compute_hash())
 
-        new_block = Block(index=last_block._index + 1,
-                          transactions=self._pending_transactions,
-                          timestamp=time.time(),
-                          previous_hash=last_block.compute_hash())
-        
-        print("Mining")
-        proof = self._proof_of_work(new_block)
-        if proof is None:
-            print("Block confirmed by other node")
-            return False
+                #Remove the transactions that were inserted into the block
+                del self._pending_transactions[:nb_transactions]
+                print("Processed {} transaction(s) in this block, {} pending".format(nb_transactions, len(self._pending_transactions)))
 
-        print("The hash of the block was :", proof)
-        #Reset the transaction list
-        self._pending_transactions = [] 
+                print("Mining....")
+                proof = self._proof_of_work(new_block)
+                if proof is None:
+                    print("Block confirmed by other node")
 
-        return self._add_block(new_block, proof)
+                    foreign_block = self._blocks_to_confirm.pop()
+                    self._blocks_to_confirm_hash.pop()
+                    local_block_tr = new_block.get_transactions()
 
-    def _add_block(self,block, computed_hash):
-        """
-        Add a block to the blockchain
-        """
-        #Check validity of block
-        if not self._check_block(block, computed_hash):
-            print("Block not valid")
-            return False
-        print("Block with ID {} added to the chain".format(block._index))
-        self._blocks.append(block)
-        return True
+                    for tr in [json.loads(t) for t in foreign_block._transactions]:
+                        tr_obj = Transaction(tr["key"], tr["value"], tr["origin"]) 
+                        
+                        # Remove the incoming block's transaction from the pool
+                        if tr_obj in self._pending_transactions:
+                            self._pending_transactions.remove(tr_obj)
+                            
+                        #Remove the incoming block's transaction from the locally mined block
+                        if tr_obj in local_block_tr:
+                            local_block_tr.remove(tr_obj)
+                    
+                    #The transactions that were not added to the chain get put back in the pool
+                    self._pending_transactions.extend(local_block_tr)
+                    
+                    #Reset block confirmation fields
+                    if self._blocks_to_confirm:
+                        self._confirm_block = False
+                        
 
-    def _check_block(self, block, computed_hash):
-        """
-        Check the validity of the block before adding it
-        to the blockchain
-        """
-        
-        #Get last block from blockchain
-        last_block = self._blocks[-1]
-        previous_hash = last_block.compute_hash()
-
-        return (previous_hash == block.get_previous_hash() and 
-                computed_hash.startswith('0' * self._difficulty) and 
-                computed_hash == block.compute_hash())
+                elif self._check_block(new_block, proof):
+                    #Add block to chain
+                    self._add_block(new_block, proof)
+                else:
+                    #Computed proof is not correct, add the transactions back in the pool
+                    self._pending_transactions.extend(input_tr)
 
     def is_valid(self):
         """Checks if the current state of the blockchain is valid.
@@ -286,13 +262,14 @@ class Blockchain:
         Meaning, are the sequence of hashes, and the proofs of the
         blocks correct?
         """
-        previous_hash = self._blocks[-1].get_previous_hash
+        previous_hash = self._blocks[-1].get_previous_hash()
         it = -1
         while previous_hash != "0":
-            #Check if proof is valid and if previous hashes matches
+            #Check if proof is valid and if previous hashes match
             if(previous_hash != self._blocks[it-1].compute_hash() or
-                not self._blocks[it].proof()):
-                    return False
+                not self._blocks[it].proof( self._difficulty)):
+                
+                return False
             it = it - 1
             previous_hash = self._blocks[it].get_previous_hash()
         
@@ -311,4 +288,5 @@ def get_address_best_hash(hashes):
     for address,hash in hashes.items():
         if(best_hash == hash):
             return address
+
     return None
