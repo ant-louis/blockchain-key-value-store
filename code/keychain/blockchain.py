@@ -148,18 +148,16 @@ class Blockchain:
         for block in chain:
             block = json.loads(block)
             transaction = []
-            if block['_transactions']:
-                trans = block["_transactions"]
-                for t in trans:
-                    transaction.append(Transaction(t["key"], t["value"], t["origin"]))
-            self._blocks.append(Block(block["_index"], 
-                                        transaction, 
-                                        block["_timestamp"], 
-                                        block["_previous_hash"]))  
-
+            for t in block["_transactions"]:
+                transaction.append(Transaction(t["key"], t["value"], t["origin"]))
+                
+        self._blocks.append(Block(block["_index"], 
+                                    transaction, 
+                                    block["_timestamp"], 
+                                    block["_previous_hash"]))  
         for block in self._blocks:
             print(block.get_transactions())
-    
+
     def add_node(self, peer):
         new_peer = Peer(peer)
         self._peers.append(new_peer)
@@ -362,7 +360,7 @@ def get_chain():
 @app.route("/bootstrap")
 def boostrap():
     boostrap_address = request.get_json()["bootstrap"]
-    node.bootstrap(boostrap_address)
+    node._bootstrap(boostrap_address)
 
 @app.route("/mine")
 def mine():
