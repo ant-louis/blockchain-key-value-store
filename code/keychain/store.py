@@ -1,29 +1,38 @@
 """
 KeyChain key-value store (stub).
 """
-
-from keychain import Blockchain
-from keychain import Transaction
+from threading import Thread
+from time import sleep
+from keychain import Blockchain, Transaction
 from requests import get
-import blockchain
+from blockchain_app import app
+import blockchain_app
 import json
 
 
 class Callback:
-    def __init__(self, transaction, chain):
-        self._transaction = transaction
-        self._chain = chain
+    def __init__(self, storage, key, value):
+        self._storage = storage
+        self._key = key 
+        self._value = value
 
     def wait(self):
         """Wait until the transaction appears in the blockchain."""
-        raise NotImplementedError
+        timeout = 30
+        while(self.completed() != self._value):
+            sleep(1)
+            timeout -= 1
+            if(timeout < 0):
+                print("Time out reached in the wait...")
+                break
 
     def completed(self):
         """Polls the blockchain to check if the data is available."""
-        raise NotImplementedError
+        return self._storage.retrieve(self._key)
+       
 
 
-class Storage:
+class Storage():
 
     port = 5000
     
@@ -32,46 +41,49 @@ class Storage:
         your blockchain. Depending whether or not the miner flag has
         been specified, you should allocate the mining process.
         """
+
         if miner:
-            self._ip = bootstrap + ":" + str(Storage.port)
+            # Set ip address
+            Storage.port += 1
+            self._address = get('https://api.ipify.org').text + ":" + str(Storage.port)
+
+            # Run the app in a thread
+            Thread(target=app.run(debug=True,host=self._address)).start()
 
             # Bootstrap
-            result = get("http://{}/bootstrap".format(self.get_ip()))
+            url = "http://{}/bootstrap".format(self._address)
+            result = get(url, data=json.dumps({"bootstrap": bootstrap}))
             if result.status_code != 200:
                 print("Unable to connect the bootstrap server")
                 return
             
             # Mine
-            result = get("http://{}:5000/mine".format(self.get_ip()))
+            result = get("http://{}/mine".format(self._address))
             if result.status_code != 200:
-                print("Unable to connect the bootstrap server")
+                print("Unable to mine")
                 return
         else:
-            Storage.port += 1
-            self._ip = get('https://api.ipify.org').text + ":" + str(Storage.port)
-    
-    def get_ip(self):
-        """
-        Get the ip adress of the user.
-        """
-        return self._ip
-        
+            # Connect to bootstrap address if simplee user
+            self._address = bootstrap
+
+
     def put(self, key, value, block=True):
         """Puts the specified key and value on the Blockchain.
         The block flag indicates whether the call should block until the value
         has been put onto the blockchain, or if an error occurred.
         """
-        url = "http://{}/put".format(self.get_ip())
-        result = get(url, data=json.dumps({"key": key, "value": value, "origin": self.get_ip()}))
+        url = "http://{}/put".format(self._address)
+        result = get(url, data=json.dumps({"key": key, "value": value, "origin": self._address}))
         if result.status_code != 200:
-            print("Unable to connect the bootstrap server")
+            print("Unable to put transaction on the blockchain")
             return
         
-        callback = Callback()
+        callback = Callback(self, key, value)
         if block:
             callback.wait()
 
         return callback
+
 
     def retrieve(self, key):
         """Searches the most recent value of the specified key.
@@ -81,37 +93,40 @@ class Storage:
         more efficient.
         """
        # Get the blockchain
-        url = "http://{}/blockchain".format(self.get_ip())
+        url = "http://{}/blockchain".format(self._address)
         result = get(url)
         if result.status_code != 200:
-            print("Unable to connect the load blockchain")
+            print("Unable to reetrieve value from the blockchain")
             return
         chain = result.json()["chain"]
-        
 
+        # Get the value of the most recent transaction corresponding to key
         value = None
-        for block in reversed(self.get_blocks()):
-            for transaction in reversed(block.get_transactions()):
-                if transaction.key == key:
-                    value = transaction.value
+        for block in reversed(chain):
+            block = json.loads(block)
+            for t in reversed(block["_transactions"]):
+                if t["key"] == key:
+                    value = t["value"]
         return value
+
 
     def retrieve_all(self, key):
         """Retrieves all values associated with the specified key on the
         complete blockchain.
         """
         # Get the blockchain
-        url = "http://{}/blockchain".format(self.get_ip())
+        url = "http://{}/blockchain".format(self._address)
         result = get(url)
         if result.status_code != 200:
-            print("Unable to connect the load blockchain")
+            print("Unable to retrievee values from the blockchain")
             return
         chain = result.json()["chain"]
         
-
+        # Get the values of the transactions corresponding to key
         values = []
-        for block in reversed(self.get_blocks()):
-            for transaction in reversed(block.get_transactions()):
-                if transaction.key == key:
-                    values.append(transaction.value)
+        for block in reversed(chain):
+            block = json.loads(block)
+            for t in reversed(block["_transactions"]):
+                if t["key"] == key:
+                    values.append(t["value"])
         return values
