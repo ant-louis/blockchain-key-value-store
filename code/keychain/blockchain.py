@@ -34,7 +34,7 @@ class Block:
 
     def proof(self):
         """Return the proof of the current block."""
-        raise NotImplementedError
+        return self.compute_hash.startswith('0' * self._difficulty)
 
     def get_transactions(self):
         """Returns the list of transactions associated with this block."""
@@ -72,6 +72,7 @@ class Peer:
         Can be extended if desired.
         """
         self._address = address
+
     def get_address(self):
         return self._address
 
@@ -88,7 +89,7 @@ class Blockchain:
         self._difficulty = difficulty
 
         #Block confirmation request
-        self._confirm_block = False #B lock request flag
+        self._confirm_block = False #Block request flag
         self._block_to_confirm = None
         self._block_hash = None
 
@@ -130,15 +131,16 @@ class Blockchain:
         for block in chain:
             block = json.loads(block)
             transaction = []
-            if block['_transactions']:
-                trans = block["_transactions"]
-                for t in trans:
-                    transaction.append(Transaction(t["key"], t["value"], t["origin"]))
-            self._blocks.append(Block(block["_index"], 
-                                        transaction, 
-                                        block["_timestamp"], 
-                                        block["_previous_hash"]))  
 
+            for t in block["_transactions"]:
+                transaction.append(Transaction(t["key"], t["value"], t["origin"]))
+                
+        self._blocks.append(Block(block["_index"], 
+                                    transaction, 
+                                    block["_timestamp"], 
+                                    block["_previous_hash"]))  
+        for block in self._blocks:
+            print(block.get_transactions())
 
     def add_node(self, peer):
         self.broadcast.add_peer(peer)
@@ -162,7 +164,6 @@ class Blockchain:
 
     def get_peers(self):
         return self.broadcast.get_peers()
-
     def difficulty(self):
         """Returns the difficulty level."""
         return self._difficulty
@@ -282,8 +283,17 @@ class Blockchain:
         Meaning, are the sequence of hashes, and the proofs of the
         blocks correct?
         """
-        #TODO: Do the method
-        raise NotImplementedError
+        previous_hash = self._blocks[-1].get_previous_hash
+        it = -1
+        while previous_hash != "0":
+            #Check if proof is valid and if previous hashes matches
+            if(previous_hash != self._blocks[it-1].compute_hash() or
+                not self._blocks[it].proof()):
+                    return False
+            it = it - 1
+            previous_hash = self._blocks[it].get_previous_hash()
+        
+        return True
 
 
 def get_address_best_hash(hashes):
