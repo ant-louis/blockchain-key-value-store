@@ -11,7 +11,7 @@ import argparse
 import sys
 import operator
 from hashlib import sha256
-# from flask import Flask, request
+from flask import Flask, request
 from requests import get, post
 import threading
 from time import sleep
@@ -117,11 +117,11 @@ class Blockchain:
 
 
 
-        # #self.ip = get('https://api.ipify.org').text
-        # self.ip = "127.0.0.1:{}".format(parse_arguments().port)
+        #self.ip = get('https://api.ipify.org').text
+        self.ip = "127.0.0.1:{}".format(parse_arguments().port)
 
-        # # Bootstrap the chain with the specified bootstrap address.
-        # self._bootstrap(bootstrap_address)
+        # Bootstrap the chain with the specified bootstrap address.
+        self._bootstrap(bootstrap_address)
 
 
         #Creating mining thread
@@ -134,43 +134,43 @@ class Blockchain:
         """Adds the genesis block to your blockchain."""
         self._blocks.append(Block(0, [], time.time(), "0"))
 
-    # def _bootstrap(self, address):
-    #     if(address == self.ip):
-    #         # Initialize the chain with the Genesis block.
-    #         self._add_genesis_block()
-    #         return
-    #     url = "http://{}/peers".format(address)
-    #     result = get(url)
+    def _bootstrap(self, address):
+        if(address == self.ip):
+            # Initialize the chain with the Genesis block.
+            self._add_genesis_block()
+            return
+        url = "http://{}/peers".format(address)
+        result = get(url)
 
-    #     if result.status_code != 200:
-    #         print("Unable to connect the bootstrap server")
-    #         return
-    #     peers = result.json()["peers"]
-    #     for peer in peers:
-    #         self.add_node(peer)
-    #     self.add_node(address)
+        if result.status_code != 200:
+            print("Unable to connect the bootstrap server")
+            return
+        peers = result.json()["peers"]
+        for peer in peers:
+            self.add_node(peer)
+        self.add_node(address)
 
-    #     results = self.broadcast(self._peers, self.ip, "addNode")
-    #     address = get_address_best_hash(results)
-    #     url = "http://{}/blockchain".format(address)
-    #     result = get(url)
-    #     if result.status_code != 200:
-    #         print("Unable to connect the load blockchain")
-    #         return
-    #     chain = result.json()["chain"]
+        results = self.broadcast(self._peers, self.ip, "addNode")
+        address = get_address_best_hash(results)
+        url = "http://{}/blockchain".format(address)
+        result = get(url)
+        if result.status_code != 200:
+            print("Unable to connect the load blockchain")
+            return
+        chain = result.json()["chain"]
 
-    #     for block in chain:
-    #         block = json.loads(block)
-    #         transaction = []
-    #         for t in block["_transactions"]:
-    #             transaction.append(Transaction(t["key"], t["value"], t["origin"]))
+        for block in chain:
+            block = json.loads(block)
+            transaction = []
+            for t in block["_transactions"]:
+                transaction.append(Transaction(t["key"], t["value"], t["origin"]))
                 
-    #     self._blocks.append(Block(block["_index"], 
-    #                                 transaction, 
-    #                                 block["_timestamp"], 
-    #                                 block["_previous_hash"]))  
-    #     for block in self._blocks:
-    #         print(block.get_transactions())
+        self._blocks.append(Block(block["_index"], 
+                                    transaction, 
+                                    block["_timestamp"], 
+                                    block["_previous_hash"]))  
+        for block in self._blocks:
+            print(block.get_transactions())
 
     def add_node(self, peer):
         new_peer = Peer(peer)
@@ -179,19 +179,19 @@ class Blockchain:
     def get_ip(self):
         return self.ip
 
-    # def broadcast(self, peers, message, message_type):
-    #     """ 
-    #     Best effort broadcast
-    #     """
-    #     results = {}
-    #     for peer in peers:
-    #         url = "http://{}/message".format(peer.get_address())
-    #         response = get(url, params={"type": message_type, "message": message})
-    #         if response.status_code != 200:
-    #             print("Unable to reach a node")
-    #             return
-    #         results[peer.get_address()] = response.json()
-    #     return results
+    def broadcast(self, peers, message, message_type):
+        """ 
+        Best effort broadcast
+        """
+        results = {}
+        for peer in peers:
+            url = "http://{}/message".format(peer.get_address())
+            response = get(url, params={"type": message_type, "message": message})
+            if response.status_code != 200:
+                print("Unable to reach a node")
+                return
+            results[peer.get_address()] = response.json()
+        return results
 
     def get_blocks(self):
         """ Return all blocks from the chain"""
@@ -343,92 +343,79 @@ class Blockchain:
         return True
 
 
-# def get_address_best_hash(hashes):
-#     results = {}
-#     for hash in hashes.values():
-#         if(hash in results):
-#             results[hash] += 1
-#         else:
-#             results[hash] = 1
+def get_address_best_hash(hashes):
+    results = {}
+    for hash in hashes.values():
+        if(hash in results):
+            results[hash] += 1
+        else:
+            results[hash] = 1
     
-#     best_hash = max(results.items(), key=operator.itemgetter(1))[0]
-#     for address,hash in hashes.items():
-#         if(best_hash == hash):
-#             return address
-#     return None
+    best_hash = max(results.items(), key=operator.itemgetter(1))[0]
+    for address,hash in hashes.items():
+        if(best_hash == hash):
+            return address
+    return None
 
 
-# app = Flask(__name__)
+app = Flask(__name__)
 
 
-# node = Blockchain(2,"127.0.0.1:5000")
-# transaction = Transaction("Test", 121, 676)
-# node.add_transaction(transaction)
-# node.mine()
+node = Blockchain(2,"127.0.0.1:5000")
+transaction = Transaction("Test", 121, 676)
+node.add_transaction(transaction)
+node.mine()
 
 
 
-# @app.route("/blockchain")
-# def get_chain():
-#     chain_data = []
-#     for block in node.get_blocks():
-#         chain_data.append(json.dumps(block.__dict__, sort_keys=True, cls=TransactionEncoder))
-#     return json.dumps({"length": len(chain_data),
-#                        "chain": chain_data})
+@app.route("/blockchain")
+def get_chain():
+    chain_data = []
+    for block in node.get_blocks():
+        chain_data.append(json.dumps(block.__dict__, sort_keys=True, cls=TransactionEncoder))
+    return json.dumps({"length": len(chain_data),
+                       "chain": chain_data})
 
-# @app.route("/bootstrap")
-# def boostrap():
-#     boostrap_address = request.get_json()["bootstrap"]
-#     node._bootstrap(boostrap_address)
+@app.route("/bootstrap")
+def boostrap():
+    boostrap_address = request.get_json()["bootstrap"]
+    node._bootstrap(boostrap_address)
 
-# @app.route("/mine")
-# def mine():
-#     node.mine()
+@app.route("/mine")
+def mine():
+    node.mine()
 
-# @app.route("/addNode")
-# def add_node():
-#     address = request.get_json()["address"]
-#     node.add_node(address)
+@app.route("/addNode")
+def add_node():
+    address = request.get_json()["address"]
+    node.add_node(address)
     
 
-# @app.route("/message")
-# def message_handler():
-#     message_type = request.args.get('type')
-#     message = request.args.get('message')
-#     print(message)
-#     if(message_type == "addNode"):
-#         node.add_node(message)
-#         return json.dumps(node.get_last_hash())
-#     elif():
-#         pass
-#     else:
-#         pass
+@app.route("/message")
+def message_handler():
+    message_type = request.args.get('type')
+    message = request.args.get('message')
+    print(message)
+    if(message_type == "addNode"):
+        node.add_node(message)
+        return json.dumps(node.get_last_hash())
+    elif():
+        pass
+    else:
+        pass
 
-# @app.route("/put")
-# def put():
-#     key = request.get_json()["key"]
-#     value = request.get_json()["value"]
-#     origin = request.get_json()["origin"]
-#     transaction = Transaction(key, value, origin)
-#     node.add_transaction(transaction)
+@app.route("/put")
+def put():
+    key = request.get_json()["key"]
+    value = request.get_json()["value"]
+    origin = request.get_json()["origin"]
+    transaction = Transaction(key, value, origin)
+    node.add_transaction(transaction)
 
-# @app.route("/peers")
-# def get_peers():
-#     return json.dumps({"peers": node.get_peers()})
-
-
-# app.run(debug=True, port=parse_arguments().port)
+@app.route("/peers")
+def get_peers():
+    return json.dumps({"peers": node.get_peers()})
 
 
-if __name__ == '__main__':
+app.run(debug=True, port=parse_arguments().port)
 
-    node = Blockchain(2)
-    while(True):
-        transaction = Transaction("Test", 121, 676)
-        node.add_transaction(transaction)
-        transaction = Transaction("Team", 55, 676)
-        node.add_transaction(transaction)
-        sleep(2)
-
-    print(node.get_blocks())
-    print("Blockchain is valid ?",node.is_valid())
