@@ -5,7 +5,7 @@ NB: Feel free to extend or modify.
 """
 
 import argparse
-from keychain import Storage
+from store import Storage
 
 
 def main(arguments):

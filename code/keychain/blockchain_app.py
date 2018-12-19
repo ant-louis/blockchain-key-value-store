@@ -70,7 +70,6 @@ def add_node():
     address = request.get_json()["address"]
     node.add_node(address)
     
-
 @app.route("/message")
 def message_handler():
     message_type = request.args.get('type')
