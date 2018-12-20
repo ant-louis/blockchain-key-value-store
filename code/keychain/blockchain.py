@@ -33,6 +33,7 @@ class Block:
         self._timestamp = timestamp
         self._previous_hash = previous_hash
         self._nonce = nonce
+        self._successors = []
 
     def proof(self, difficulty):
         """Return the proof of the current block."""
@@ -49,7 +50,12 @@ class Block:
         """
         A function that return the hash of the block contents.
         """
-        block_string = json.dumps(self.__dict__, sort_keys=True, cls=TransactionEncoder)
+
+        #Don't hash successors in blocks
+        to_hash = copy.deepcopy(self.__dict__)
+        del to_hash['_successors']
+        
+        block_string = json.dumps(to_hash, sort_keys=True, cls=TransactionEncoder)
         return sha256(block_string.encode()).hexdigest()
 
     def _change_nonce(self, random = False):
@@ -57,6 +63,8 @@ class Block:
             self._nonce = random.randint(1, sys.maxsize)
         else:
             self._nonce += 1
+
+    
 
 class Transaction:
     def __init__(self, key, value, origin):
@@ -356,11 +364,13 @@ def get_address_best_hash(hashes):
     return None
 
 
-
-while(True):
-    node = Blockchain(2,5000,True)
-    transaction1 = Transaction("Team", 52,666)
-    node.add_transaction(transaction1)
-    transaction2 = Transaction("Turing", 52,666)
-    node.add_transaction(transaction2)
-    time.sleep(2)
+if __name__ == '__main__':
+    i = 0
+    while(True):
+        node = Blockchain(2,5000,True)
+        transaction1 = Transaction("Team", i,666)
+        node.add_transaction(transaction1)
+        transaction2 = Transaction("Turing", i,666)
+        node.add_transaction(transaction2)
+        time.sleep(2)
+        i += 10
