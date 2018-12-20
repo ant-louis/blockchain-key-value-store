@@ -66,7 +66,7 @@ class Transaction:
         self.key = key
         self.value = value 
         self.origin = origin
-    #Overwriting
+    #Overwriting equality function
     def __eq__(self, other): 
         return self.__dict__ == other.__dict__
 
