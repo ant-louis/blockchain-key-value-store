@@ -194,12 +194,14 @@ class Blockchain:
             if branch[-1].compute_hash() == new_block._previous_hash:
                 branch.append(new_block)
                 createBranch = True
+                print("Block ID {} hash {} added to BRANCH".format(new_block._index, computed_hash[:4]))
                 break
             #Else, copy the branch and add the new block to the copy
             for k, block in enumerate(branch):
                 if new_block._previous_hash == block.compute_hash():
                     new_branch = copy.deepcopy(branch[:k]).append(new_block)
                     self._branch_list.append(new_branch)
+                    print("Block ID {} hash {} added to NEW BRANCH".format(new_block._index, computed_hash[:4]))
                     createBranch = True
                     break
 
@@ -403,5 +405,4 @@ if __name__ == '__main__':
         transaction2 = Transaction("Turing", i,666)
         node.add_transaction(transaction2)
         time.sleep(2)
-        print(node.get_blocks())
         i += 10
