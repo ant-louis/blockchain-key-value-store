@@ -54,7 +54,7 @@ def mine():
 def add_node():
     address = request.args.get("address")
     node.add_node(address)
-    return json.dumps(node.get_last_hash())
+    return json.dumps(node.get_last_master_hash())
     
 @app.route("/broadcast")
 def message_handler():

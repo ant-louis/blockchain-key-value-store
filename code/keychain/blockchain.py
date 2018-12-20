@@ -96,11 +96,9 @@ class Blockchain:
         #self.ip = get('https://api.ipify.org').text
         self._ip = "127.0.0.1:{}".format(port)
         
-        self._add_genesis_block()
-        self._last_hash = self._master_chain[-1].compute_hash()
-        print("Last hash", self._last_hash)
+        # self._add_genesis_block()
 
-        # self.broadcast = Broadcast([], self._ip)
+        self.broadcast = Broadcast([], self._ip)
 
         #Creating mining thread
         if miner:
@@ -111,6 +109,8 @@ class Blockchain:
     def _add_genesis_block(self):
         """Adds the genesis block to your blockchain."""
         self._master_chain.append(Block(0, [], time.time(), "0"))
+        self._last_hash = self._master_chain[-1].compute_hash()
+
 
     def bootstrap(self, address):
         if(address == self._get_ip()):
@@ -147,11 +147,12 @@ class Blockchain:
 
             for t in block["_transactions"]:
                 transaction.append(Transaction(t["key"], t["value"], t["origin"]))
-
-            self._add_block(Block(block["_index"], 
+            new_block = Block(block["_index"], 
                                     transaction, 
                                     block["_timestamp"], 
-                                    block["_previous_hash"]))  
+                                    block["_previous_hash"])
+            
+            self._add_block(new_block, new_block.compute_hash())  
 
         return
 
@@ -169,7 +170,6 @@ class Blockchain:
         Constraint: Discard block if the parent is more than 1 generation away
         from the master chain
         """
-        #TODO : Check where to add the block
 
         #Check block validity
         if (not new_block.proof(self._difficulty) or
@@ -261,10 +261,9 @@ class Blockchain:
 
     def get_blocks(self):
         """ Return all blocks from the chain"""
-        # TODO: Return the true blockchain
         return self._master_chain
 
-    def get_last_hash(self):
+    def get_last_master_hash(self):
         """Return the hash of the last block"""
         return self._master_chain[-1].compute_hash()
 
@@ -283,7 +282,7 @@ class Blockchain:
         of transactions, and attempt to mine a block with those.
         """
 
-        # print("Added transaction" ,transaction.__dict__)
+        print("Added transaction" ,transaction.__dict__)
         self._pending_transactions.append(transaction)
 
         #TODO: Broadcast transaction to network
@@ -366,7 +365,7 @@ class Blockchain:
         Meaning, are the sequence of hashes, and the proofs of the
         blocks correct?
         """
-        previous_hash = self.get_last_hash()
+        previous_hash = self.get_last_master_hash()
         it = -1
         while previous_hash != "0":
             #Check if proof is valid and if previous hashes match
@@ -396,13 +395,13 @@ def get_address_best_hash(hashes):
     return None
 
 
-if __name__ == '__main__':
-    i = 0
-    node = Blockchain(2,5000,True)
-    while(True):
-        transaction1 = Transaction("Team", i,666)
-        node.add_transaction(transaction1)
-        transaction2 = Transaction("Turing", i,666)
-        node.add_transaction(transaction2)
-        time.sleep(2)
-        i += 10
+# if __name__ == '__main__':
+#     i = 0
+#     node = Blockchain(2,5000,True)
+#     while(True):
+#         transaction1 = Transaction("Team", i,666)
+#         node.add_transaction(transaction1)
+#         transaction2 = Transaction("Turing", i,666)
+#         node.add_transaction(transaction2)
+#         time.sleep(2)
+#         i += 10
