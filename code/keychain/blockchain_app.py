@@ -1,4 +1,4 @@
-from blockchain import Blockchain, Transaction, TransactionEncoder
+from blockchain import Block, Blockchain, Transaction, TransactionEncoder
 import time
 import datetime
 import json
@@ -66,8 +66,21 @@ def message_handler():
         return json.dumps({"deliver": True})
     message_type, message, sender = broadcast_deliver[1]
     if(message_type == "transaction"):
-        pass
+        t = json.loads(message)
+        transaction = Transaction(t["key"], t["value"], t["origin"])
+        node.add_transaction(transaction)
     elif(message_type == 'block'):
+        #TODO: Broadcast block
+        # block = json.loads(message)
+        # transaction = []
+
+        # for t in message["_transactions"]:
+        #     transaction.append(Transaction(t["key"], t["value"], t["origin"]))
+        # new_block = Block(message["_index"], 
+        #                         transaction, 
+        #                         message["_timestamp"], 
+        #                         message["_previous_hash"])
+        # node.confirm_block(new_block)
         pass
     else:
         return 

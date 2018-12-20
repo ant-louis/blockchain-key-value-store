@@ -50,8 +50,7 @@ class Block:
         """
 
         #Don't hash successors in blocks
-        to_hash = copy.deepcopy(self.__dict__)
-        block_string = json.dumps(to_hash, sort_keys=True, cls=TransactionEncoder)
+        block_string = json.dumps(self.__dict__, sort_keys=True, cls=TransactionEncoder)
         return sha256(block_string.encode()).hexdigest()
 
     def _change_nonce(self, random = False):
@@ -98,7 +97,7 @@ class Blockchain:
         
         # self._add_genesis_block()
 
-        self.broadcast = Broadcast([], self._ip)
+        self._broadcast = Broadcast([], self._ip)
 
         #Creating mining thread
         if miner:
@@ -255,6 +254,10 @@ class Blockchain:
                     if self._blocks_to_confirm:
                         self._confirm_block = False
 
+        #Broadcast block to other nodes
+        self._broadcast.broadcast("block",json.dumps(new_block.__dict__,
+                                                        sort_keys=True,
+                                                        cls=TransactionEncoder))
         self._last_hash = computed_hash
         return computed_hash
 
@@ -286,7 +289,7 @@ class Blockchain:
         self._pending_transactions.append(transaction)
 
         #TODO: Broadcast transaction to network
-        
+        self._broadcast.broadcast("transaction",json.dumps(transaction.__dict__,sort_keys=True))
         return
 
     def confirm_block(self, block, block_hash):
