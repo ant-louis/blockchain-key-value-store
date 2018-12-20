@@ -72,7 +72,7 @@ class Transaction:
 
 class Blockchain:
 
-    def __init__(self, difficulty, port):
+    def __init__(self, difficulty, port, miner = True):
         """The bootstrap address serves as the initial entry point of
         the bootstrapping procedure. In principle it will contact the specified
         address, download the peerlist, and start the bootstrapping procedure.
@@ -90,6 +90,12 @@ class Blockchain:
         #self.ip = get('https://api.ipify.org').text
         self._ip = "127.0.0.1:{}".format(port)
         self.broadcast = Broadcast([], self._ip)
+
+        #Creating mining thread
+        if miner:
+            print("Create mining thread")
+            mining_thread = threading.Thread(target = self.mine)
+            mining_thread.start()
 
     def _add_genesis_block(self):
         """Adds the genesis block to your blockchain."""
@@ -275,7 +281,9 @@ class Blockchain:
                 print("Processed {} transaction(s) in this block, {} pending".format(nb_transactions, len(self._pending_transactions)))
 
                 print("Mining....")
+
                 proof = self._proof_of_work(new_block)
+
                 if proof is None:
                     print("Block confirmed by other node")
 
