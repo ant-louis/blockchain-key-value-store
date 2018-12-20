@@ -79,12 +79,70 @@ class Blockchain:
         """
         # Initialize the properties.
         self._blocks = []
+        self._pending_transactions = []
+        self._difficulty = difficulty
 
-        # self.broadcast = Broadcast([])
+        #Block confirmation request
+        self._confirm_block = False #Block request flag
+        self._blocks_to_confirm = []
+        self._blocks_to_confirm_hash = []
+
+        #self.ip = get('https://api.ipify.org').text
+        self._ip = "127.0.0.1:{}".format(port)
+        self.broadcast = Broadcast([], self._ip)
+
+    def _add_genesis_block(self):
+        """Adds the genesis block to your blockchain."""
+        self._blocks.append(Block(0, [], time.time(), "0"))
+
+    def bootstrap(self, address):
+        if(address == self._get_ip()):
+            # Initialize the chain with the Genesis block.
+            self._add_genesis_block()
+            return
+        # Get the list of peer from bootstrap node
+        try:
+            result = send_to_one(address, "peers")
+        except exceptions.RequestException:
+            print("Unable to bootstrap (connection faild to bootstrap node)")
+            return
+        peers = result.json()["peers"]
+        for peer in peers:
+            self.add_node(peer)
+        self.add_node(address)
+        if(self._get_ip() in peers):
+            peers.remove(self._get_ip())
+
+
+        # Get all the blocks from a non-corrupted node
+        hashes = {}
+        for peer in self.get_peers():
+            hashes[peer] = send_to_one(peer, "addNode", {"address" : self._get_ip()})
+        if hashes:
+            address = get_address_best_hash(hashes)
+        result = send_to_one(address, "blockchain")
+        chain = result.json()["chain"]
+
+        # Reconstruct the chain
+        for block in chain:
+            block = json.loads(block)
+            transaction = []
+
+            for t in block["_transactions"]:
+                transaction.append(Transaction(t["key"], t["value"], t["origin"]))
+
+        self._blocks.append(Block(block["_index"], 
+                                    transaction, 
+                                    block["_timestamp"], 
+                                    block["_previous_hash"]))  
+
+        return
+
+        
     def add_node(self, peer):
         self.broadcast.add_peer(peer)   
 
-    def get_ip(self):
+    def _get_ip(self):
         return self._ip
 
     def _add_block(self,block, computed_hash):
@@ -152,11 +210,6 @@ class Blockchain:
 
         return computed_hash
 
-    def add_node(self, peer):
-        self.broadcast.add_peer(peer)
-
-    def get_ip(self):
-        return self.ip
 
     def get_blocks(self):
         """ Return all blocks from the chain"""
