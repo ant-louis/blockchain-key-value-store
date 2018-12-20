@@ -34,6 +34,8 @@ class Block:
         self._previous_hash = previous_hash
         self._nonce = nonce
         self._successors = []
+        self._successors_length = []
+        self._isLast_only_child = True
 
     def proof(self, difficulty):
         """Return the proof of the current block."""
@@ -54,7 +56,9 @@ class Block:
         #Don't hash successors in blocks
         to_hash = copy.deepcopy(self.__dict__)
         del to_hash['_successors']
-        
+        del to_hash['_successors_length']
+        del to_hash['_isLast_only_child']
+
         block_string = json.dumps(to_hash, sort_keys=True, cls=TransactionEncoder)
         return sha256(block_string.encode()).hexdigest()
 
@@ -166,6 +170,7 @@ class Blockchain:
         """
         Add a block to the blockchain
         """
+        #TODO : Check where to add the block
         self._blocks.append(block)
         print("Block ID {} hash {} added to the chain".format(block._index, computed_hash))
 
@@ -230,6 +235,7 @@ class Blockchain:
 
     def get_blocks(self):
         """ Return all blocks from the chain"""
+        # TODO: Return the true blockchain
         return self._blocks
 
     def get_last_hash(self):
