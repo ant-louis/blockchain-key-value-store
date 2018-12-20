@@ -89,7 +89,7 @@ class Blockchain:
 
         #self.ip = get('https://api.ipify.org').text
         self._ip = "127.0.0.1:{}".format(port)
-        self.broadcast = Broadcast([], self._ip)
+        # self.broadcast = Broadcast([], self._ip)
 
         #Creating mining thread
         if miner:
@@ -199,7 +199,7 @@ class Blockchain:
                 self._blocks_to_confirm):
 
                 print("Confirming an incoming block...")
-                if not self._check_block(self._blocks_to_confirm[-1], self._blocks_to_confirm_hash[-1]):
+                if self._check_block(self._blocks_to_confirm[-1], self._blocks_to_confirm_hash[-1]):
                     #Block is valid, we add it to the chain, stop mining
                     print("Adding block")
                     self._add_block(self._blocks_to_confirm[-1], self._blocks_to_confirm_hash[-1])
@@ -346,8 +346,25 @@ def get_address_best_hash(hashes):
             results[hash] = 1
     
     best_hash = max(results.items(), key=operator.itemgetter(1))[0]
-    for address,hash in hashes.items():
+    for addif __name__ == '__main__':
+    node = Blockchain(2,5000,True)
+    while(True):
+        transaction1 = Transaction("Team", 52,666)
+        node.add_transaction(transaction1)
+        transaction2 = Transaction("Turing", 52,666)
+        node.add_transaction(transaction2)
+        time.sleep(2)ress,hash in hashes.items():
         if(best_hash == hash):
             return address
 
     return None
+
+
+if __name__ == '__main__':
+    node = Blockchain(2,5000,True)
+    while(True):
+        transaction1 = Transaction("Team", 52,666)
+        node.add_transaction(transaction1)
+        transaction2 = Transaction("Turing", 52,666)
+        node.add_transaction(transaction2)
+        time.sleep(2)
