@@ -37,6 +37,7 @@ class Block:
 
     def proof(self, difficulty):
         """Return the proof of the current block."""
+        # print("Hash in proof",self.compute_hash())
         return self.compute_hash().startswith('0' * difficulty)
                 
 
@@ -89,14 +90,13 @@ class Blockchain:
         #Block confirmation request
         self._confirm_block = False #Block request flag
         self._blocks_to_confirm = []
-        self._blocks_to_confirm_hash = []
 
         #self.ip = get('https://api.ipify.org').text
         self._ip = "127.0.0.1:{}".format(port)
         
         # self._add_genesis_block()
 
-        self.broadcast = Broadcast([], self._ip)
+        self.broadcast = Broadcast(set(), self._ip)
 
         #Creating mining thread
         if miner:
@@ -108,7 +108,7 @@ class Blockchain:
         """Adds the genesis block to your blockchain."""
         self._master_chain.append(Block(0, [], time.time(), "0"))
         self._last_hash = self._master_chain[-1].compute_hash()
-        print("Genesis block added, hash :",self._last_hash[:4])
+        print("Genesis block added, hash :",self._last_hash[self._difficulty:self._difficulty + 4])
     
     def bootstrap(self, address):
         if(address == self._get_ip()):
@@ -119,7 +119,7 @@ class Blockchain:
         try:
             result = send_to_one(address, "peers")
         except exceptions.RequestException:
-            print("Unable to bootstrap (connection faild to bootstrap node)")
+            print("Unable to bootstrap (connection failed to bootstrap node)")
             return
         peers = result.json()["peers"]
         for peer in peers:
@@ -148,17 +148,18 @@ class Blockchain:
                 transaction.append(Transaction(t["key"], t["value"], t["origin"]))
             
             new_block = Block(block["_index"], 
-                                    transaction, 
-                                    block["_timestamp"], 
-                                    block["_previous_hash"])
+                                transaction, 
+                                block["_timestamp"], 
+                                block["_previous_hash"],
+                                block["_nonce"])
             
-            print("Bootstrap BLOCK:",new_block.compute_hash()[:4])
+            print("Bootstrap BLOCK:",new_block.compute_hash()[self._difficulty:self._difficulty + 4])
             init_chain.append(new_block)
         
         self._master_chain = init_chain
         self._last_hash = init_chain[-1].compute_hash()
 
-        print("Bootstrap complete. Blockchain is now {} blocks long:".format(len(self._master_chain)))
+        print("Bootstrap complete. Blockchain is now {} blocks long".format(len(self._master_chain)))
         # [print(block.__dict__) for block in self._master_chain]
         return
    
@@ -178,6 +179,7 @@ class Blockchain:
 
         #Check block validity
         if not new_block.proof(self._difficulty):
+            print("Block has incorrect proof")
             return False
 
         new_block_hash = new_block.compute_hash()
@@ -186,7 +188,7 @@ class Blockchain:
         #Discard block if the parent is more than 1 generation away
         if new_block._previous_hash == self._master_chain[-1].compute_hash():
             self._branch_list.append([new_block])
-            print("Block ID {} hash {} added to BRANCH".format(new_block._index, new_block_hash[:4]))
+            print("Block ID {} hash {} added to BRANCH".format(new_block._index, new_block_hash[self._difficulty:self._difficulty + 4]))
             return True
 
         createBranch = False
@@ -200,14 +202,15 @@ class Blockchain:
             if branch[-1].compute_hash() == new_block._previous_hash:
                 branch.append(new_block)
                 createBranch = True
-                print("Block ID {} hash {} added to BRANCH".format(new_block._index, new_block_hash[:4]))
+                print("Block ID {} hash {} added to BRANCH".format(new_block._index, new_block_hash[self._difficulty:self._difficulty + 4]))
                 break
             #Else, copy the branch and add the new block to the copy
             for k, block in enumerate(branch):
                 if new_block._previous_hash == block.compute_hash():
-                    new_branch = copy.deepcopy(branch[:k]).append(new_block)
+                    new_branch = copy.deepcopy(branch[:k+1])
+                    new_branch.append(new_block)
                     self._branch_list.append(new_branch)
-                    print("Block ID {} hash {} added to NEW BRANCH".format(new_block._index, new_block_hash[:4]))
+                    print("Block ID {} hash {} added to NEW BRANCH".format(new_block._index, new_block_hash[self._difficulty:self._difficulty + 4]))
                     createBranch = True
                     break
 
@@ -215,8 +218,8 @@ class Blockchain:
         max_len = len(sorted(self._branch_list, key=len)[-1])
         
 
-        #Longest chain rule : branch longer than 2 blocks get added
-        if max_len > 2:
+        #Longest chain rule : branch longer than 4 blocks get added
+        if max_len > 4:
             #Add all but one element to the master chain
 
             self._last_hash = max_len_branch[-1].compute_hash()
@@ -224,7 +227,7 @@ class Blockchain:
             #Remove all  but one element from the list of branches
             self._branch_list = [[max_len_branch[-1]]]
             [print("Block ID {} hash {} added to MASTER"
-                    .format(block._index, block.compute_hash()[:4]))
+                    .format(block._index, block.compute_hash()[self._difficulty:self._difficulty + 4]))
                     for block in max_len_branch[:-1]]
             return True
         
@@ -250,10 +253,13 @@ class Blockchain:
             if (self._confirm_block and
                 self._blocks_to_confirm):
 
-                print("Confirming an incoming block...")
-                if not self._add_block(self._blocks_to_confirm[-1]):
-                    print("Resume mining...")
+                print("Confirming an incoming block with hash ",
+                        self._blocks_to_confirm[-1].compute_hash()[self._difficulty:self._difficulty + 4])
+                if self._add_block(self._blocks_to_confirm[-1]):
+                    return None
+                else:
                     #Block is not valid, we continue mining
+                    print("Resume mining...")
                     self._blocks_to_confirm.pop()
                     if self._blocks_to_confirm:
                         self._confirm_block = False
@@ -262,6 +268,8 @@ class Blockchain:
         self.broadcast.broadcast("block",json.dumps(new_block.__dict__,
                                                         sort_keys=True,
                                                         cls=TransactionEncoder))
+        
+        print("Mined block hash",computed_hash[self._difficulty:self._difficulty + 4])
         self._last_hash = computed_hash
         return computed_hash
 
@@ -280,7 +288,7 @@ class Blockchain:
         """Returns the difficulty level."""
         return self._difficulty
 
-    def add_transaction(self, transaction):
+    def add_transaction(self, transaction, broadcast = True):
         """Adds a transaction to your current list of transactions,
         and broadcasts it to your Blockchain network.
         
@@ -288,10 +296,10 @@ class Blockchain:
         of transactions, and attempt to mine a block with those.
         """
 
-        print("Added transaction" ,transaction.__dict__)
+        # print("Added transaction" ,transaction.__dict__)
         self._pending_transactions.append(transaction)
-
-        self.broadcast.broadcast("transaction",json.dumps(transaction.__dict__,sort_keys=True))
+        if broadcast:
+            self.broadcast.broadcast("transaction",json.dumps(transaction.__dict__,sort_keys=True))
         return
 
     def confirm_block(self, block):
@@ -331,19 +339,17 @@ class Blockchain:
                     print("Block confirmed by other node")
 
                     foreign_block = self._blocks_to_confirm.pop()
-                    self._blocks_to_confirm_hash.pop()
                     local_block_tr = new_block.get_transactions()
 
-                    for tr in [json.loads(t) for t in foreign_block._transactions]:
-                        tr_obj = Transaction(tr["key"], tr["value"], tr["origin"]) 
+                    for tr in foreign_block.get_transactions():
                         
                         # Remove the incoming block's transaction from the pool
-                        if tr_obj in self._pending_transactions:
-                            self._pending_transactions.remove(tr_obj)
+                        if tr in self._pending_transactions:
+                            self._pending_transactions.remove(tr)
                             
                         #Remove the incoming block's transaction from the locally mined block
-                        if tr_obj in local_block_tr:
-                            local_block_tr.remove(tr_obj)
+                        if tr in local_block_tr:
+                            local_block_tr.remove(tr)
                     
                     #The transactions that were not added to the chain get put back in the pool
                     self._pending_transactions.extend(local_block_tr)

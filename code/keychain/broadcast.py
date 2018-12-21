@@ -9,11 +9,12 @@ class Broadcast():
         self._correct = peers
         self._ip = ip
 
-        #Intialize the form dictionary for peers
+        #Intialize the from dictionary for peers
         self._from = {}
         for peer in self._peers:
             self._from[peer] = []
 
+        self._from[self._ip] = []
         # Start heartbeat
         self._heartbeat = True
         print("Before starting thread")
@@ -26,7 +27,8 @@ class Broadcast():
         if it is not already in
         """
         if peer not in self._peers:
-            self._peers.append(peer)
+            self._correct.add(peer)
+            self._peers.add(peer)
             self._from[peer] = []
 
     def get_peers(self):
@@ -44,9 +46,10 @@ class Broadcast():
         - `message_type`: type of message to send {transaction, block}
         - `message`: message to send
         """
+        self._from[self._ip].append(message)
         self.beb_send(message_type, message, self._ip)
 
-    def beb_deliver(self, message_type, message, sender):
+    def deliver(self, message_type, message, sender):
         """
         Deliver the message. If the sender is not
         a correct processe anymore the message is re-broadcast     
@@ -130,7 +133,7 @@ class Broadcast():
                             self._peers.remove(peer)
                             del self._from[peer]
                 if peer not in self._correct:
-                    self._correct.append(peer)
+                    self._correct.add(peer)
             sleep(10)
 
 

@@ -28,8 +28,12 @@ def parse_arguments():
     return arguments
 
 app = Flask(__name__)
+import logging
+log = logging.getLogger('werkzeug')
+log.disabled = True
+app.logger.disabled = True
 
-node = Blockchain(2, parse_arguments().port)
+node = Blockchain(5, parse_arguments().port)
 
 
 @app.route("/bootstrap")
@@ -42,7 +46,6 @@ def boostrap():
 def get_chain():
     chain_data = []
     for block in node.get_blocks():
-        print(block, file=sys.stdout)
         chain_data.append(json.dumps(block.__dict__, sort_keys=True, cls=TransactionEncoder))
     return json.dumps({"length": len(chain_data), "chain": chain_data})
 
@@ -63,15 +66,15 @@ def message_handler():
     message_type = request.args.get('type')
     message = request.args.get('message')
     sender = request.args.get('sender')
-    broadcast_deliver = node.broadcast.beb_deliver(message_type, message, sender)
+    broadcast_deliver = node.broadcast.deliver(message_type, message, sender)
     if(not broadcast_deliver[0]):
         return json.dumps({"deliver": True})
     message_type, message, sender = broadcast_deliver[1]
     if(message_type == "transaction"):
+
         t = json.loads(message)
         transaction = Transaction(t["key"], t["value"], t["origin"])
-        print("IN HANDLER :",transaction)
-        node.add_transaction(transaction)
+        node.add_transaction(transaction, False)
         return json.dumps({"deliver": True})
 
     elif(message_type == 'block'):
@@ -84,7 +87,8 @@ def message_handler():
         new_block = Block(block["_index"], 
                                 transaction, 
                                 block["_timestamp"], 
-                                block["_previous_hash"])
+                                block["_previous_hash"],
+                                block["_nonce"])
         node.confirm_block(new_block)
         return json.dumps({"deliver": True})
 
@@ -94,7 +98,6 @@ def message_handler():
 @app.route("/put")
 def put():
     data = request.get_json(force=True)
-    print(data, file=sys.stdout)
     key = data["key"]
     value = data["value"]
     origin = data["origin"]
@@ -114,4 +117,4 @@ def heartbreat():
     
 if __name__ == "__main__":
     arguments = parse_arguments()
-    app.run(debug=True, port=arguments.port)
+    app.run(debug=False, port=arguments.port)
