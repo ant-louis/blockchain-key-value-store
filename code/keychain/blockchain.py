@@ -94,9 +94,9 @@ class Blockchain:
         #self.ip = get('https://api.ipify.org').text
         self._ip = "127.0.0.1:{}".format(port)
         
-        self._add_genesis_block()
+        # self._add_genesis_block()
 
-        # self._broadcast = Broadcast([], self._ip)
+        self.broadcast = Broadcast([], self._ip)
 
         #Creating mining thread
         if miner:
@@ -108,7 +108,8 @@ class Blockchain:
         """Adds the genesis block to your blockchain."""
         self._master_chain.append(Block(0, [], time.time(), "0"))
         self._last_hash = self._master_chain[-1].compute_hash()
-
+        print("Genesis block added, hash :",self._last_hash[:4])
+    
     def bootstrap(self, address):
         if(address == self._get_ip()):
             # Initialize the chain with the Genesis block.
@@ -138,23 +139,31 @@ class Blockchain:
         chain = result.json()["chain"]
 
         # Reconstruct the chain
+        init_chain = []
         for block in chain:
             block = json.loads(block)
             transaction = []
 
             for t in block["_transactions"]:
                 transaction.append(Transaction(t["key"], t["value"], t["origin"]))
+            
             new_block = Block(block["_index"], 
                                     transaction, 
                                     block["_timestamp"], 
                                     block["_previous_hash"])
             
-            self._add_block(new_block)  
+            print("Bootstrap BLOCK:",new_block.compute_hash()[:4])
+            init_chain.append(new_block)
+        
+        self._master_chain = init_chain
+        self._last_hash = init_chain[-1].compute_hash()
 
+        print("Bootstrap complete. Blockchain is now {} blocks long:".format(len(self._master_chain)))
+        # [print(block.__dict__) for block in self._master_chain]
         return
    
     def add_node(self, peer):
-        self._broadcast.add_peer(peer)   
+        self.broadcast.add_peer(peer)   
 
     def _get_ip(self):
         return self._ip
@@ -249,10 +258,10 @@ class Blockchain:
                     if self._blocks_to_confirm:
                         self._confirm_block = False
 
-        # #Broadcast block to other nodes
-        # self._broadcast.broadcast("block",json.dumps(new_block.__dict__,
-        #                                                 sort_keys=True,
-        #                                                 cls=TransactionEncoder))
+        #Broadcast block to other nodes
+        self.broadcast.broadcast("block",json.dumps(new_block.__dict__,
+                                                        sort_keys=True,
+                                                        cls=TransactionEncoder))
         self._last_hash = computed_hash
         return computed_hash
 
@@ -282,7 +291,7 @@ class Blockchain:
         print("Added transaction" ,transaction.__dict__)
         self._pending_transactions.append(transaction)
 
-        # self._broadcast.broadcast("transaction",json.dumps(transaction.__dict__,sort_keys=True))
+        self.broadcast.broadcast("transaction",json.dumps(transaction.__dict__,sort_keys=True))
         return
 
     def confirm_block(self, block):
@@ -318,7 +327,6 @@ class Blockchain:
                 # print("Mining....")
 
                 proof = self._proof_of_work(new_block)
-                print("Proof" ,proof[:4])
                 if proof is None:
                     print("Block confirmed by other node")
 
@@ -389,13 +397,13 @@ def get_address_best_hash(hashes):
     return None
 
 
-if __name__ == '__main__':
-    i = 0
-    node = Blockchain(2,5000,True)
-    while(True):
-        transaction1 = Transaction("Team", i,666)
-        node.add_transaction(transaction1)
-        transaction2 = Transaction("Turing", i,666)
-        node.add_transaction(transaction2)
-        time.sleep(2)
-        i += 10
+# if __name__ == '__main__':
+#     i = 0
+#     node = Blockchain(2,5000,True)
+#     while(True):
+#         transaction1 = Transaction("Team", i,666)
+#         node.add_transaction(transaction1)
+#         transaction2 = Transaction("Turing", i,666)
+#         node.add_transaction(transaction2)
+#         time.sleep(2)
+#         i += 10

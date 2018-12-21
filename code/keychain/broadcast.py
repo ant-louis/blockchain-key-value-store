@@ -46,7 +46,7 @@ class Broadcast():
         """
         self.beb_send(message_type, message, self._ip)
 
-    def deliver(self, message_type, message, sender):
+    def beb_deliver(self, message_type, message, sender):
         """
         Deliver the message. If the sender is not
         a correct processe anymore the message is re-broadcast     
@@ -83,12 +83,13 @@ class Broadcast():
 
         Arguments:
         ----------
-        - `message_type`: type of message to send {transaction, block}
+        - `type`: type of message to send {transaction, block}
         - `message`: message to send
         - `sender`: adress of the sender
         """
         for peer in self._peers:
-            params = {"message_type": message_type, "message": message, "sender": sender}
+            print("Sending {} to peer {}".format(message_type, peer))
+            params = {"type": message_type, "message": message, "sender": sender}
             try:
                 send_to_one(peer, "broadcast", params)
             except exceptions.RequestException:

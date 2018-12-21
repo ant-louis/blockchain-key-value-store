@@ -42,6 +42,7 @@ def boostrap():
 def get_chain():
     chain_data = []
     for block in node.get_blocks():
+        print(block, file=sys.stdout)
         chain_data.append(json.dumps(block.__dict__, sort_keys=True, cls=TransactionEncoder))
     return json.dumps({"length": len(chain_data), "chain": chain_data})
 
@@ -58,6 +59,7 @@ def add_node():
     
 @app.route("/broadcast")
 def message_handler():
+
     message_type = request.args.get('type')
     message = request.args.get('message')
     sender = request.args.get('sender')
@@ -69,28 +71,33 @@ def message_handler():
         t = json.loads(message)
         transaction = Transaction(t["key"], t["value"], t["origin"])
         node.add_transaction(transaction)
-    elif(message_type == 'block'):
-        #TODO: Broadcast block
-        # block = json.loads(message)
-        # transaction = []
+        return json.dumps({"deliver": True})
 
-        # for t in message["_transactions"]:
-        #     transaction.append(Transaction(t["key"], t["value"], t["origin"]))
-        # new_block = Block(message["_index"], 
-        #                         transaction, 
-        #                         message["_timestamp"], 
-        #                         message["_previous_hash"])
-        # node.confirm_block(new_block)
-        pass
+    elif(message_type == 'block'):
+
+        block = json.loads(message)
+        transaction = []
+
+        for t in block["_transactions"]:
+            transaction.append(Transaction(t["key"], t["value"], t["origin"]))
+        new_block = Block(block["_index"], 
+                                transaction, 
+                                block["_timestamp"], 
+                                block["_previous_hash"])
+        node.confirm_block(new_block)
+        return json.dumps({"deliver": True})
+
     else:
         return 
 
 @app.route("/put")
 def put():
-    key = request.get_json()["key"]
-    value = request.get_json()["value"]
-    origin = request.get_json()["origin"]
-    node.put(key, value, origin)
+    data = request.get_json(force=True)
+    print(data, file=sys.stdout)
+    key = data["key"]
+    value = data["value"]
+    origin = data["origin"]
+    node.add_transaction(Transaction(key,value,origin))
     return json.dumps({"deliver": True})
 
 @app.route("/peers")
