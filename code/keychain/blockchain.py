@@ -86,10 +86,11 @@ class Blockchain:
         self._last_hash = None
         self._pending_transactions = []
         self._difficulty = difficulty
-
+        self._miner = miner
         #Block confirmation request
         self._confirm_block = False #Block request flag
         self._blocks_to_confirm = []
+        self._block_to_mine = None
 
         #self.ip = get('https://api.ipify.org').text
         self._ip = "127.0.0.1:{}".format(port)
@@ -99,7 +100,7 @@ class Blockchain:
         self.broadcast = Broadcast(set(), self._ip)
 
         #Creating mining thread
-        if miner:
+        if self._miner:
             print("Create mining thread")
             mining_thread = threading.Thread(target = self.mine)
             mining_thread.start()
@@ -233,39 +234,25 @@ class Blockchain:
         
         return createBranch
     
-    def _proof_of_work(self, new_block):
+    def _proof_of_work(self):
         """
         Implement the proof of work algorithm
         Also check for block confirmation request from another Node
         """
         #Reset nonce
-        new_block._nonce = 0
+        self._block_to_mine._nonce = 0
 
         #Get the real hash of the block
-        computed_hash = new_block.compute_hash()
+        computed_hash = self._block_to_mine.compute_hash()
 
         #Find the nonce that computes the right block hash
         while not computed_hash.startswith('0' * self._difficulty):
-            new_block._change_nonce()
-            computed_hash = new_block.compute_hash()
-
-            #TODO: Confirm when not mining
-            if (self._confirm_block and
-                self._blocks_to_confirm):
-
-                print("Confirming an incoming block with hash ",
-                        self._blocks_to_confirm[-1].compute_hash()[self._difficulty:self._difficulty + 4])
-                if self._add_block(self._blocks_to_confirm[-1]):
-                    return None
-                else:
-                    #Block is not valid, we continue mining
-                    print("Resume mining...")
-                    self._blocks_to_confirm.pop()
-                    if self._blocks_to_confirm:
-                        self._confirm_block = False
+            if not self._confirm_block:
+                self._block_to_mine._change_nonce()
+                computed_hash = self._block_to_mine.compute_hash()
 
         #Broadcast block to other nodes
-        self.broadcast.broadcast("block",json.dumps(new_block.__dict__,
+        self.broadcast.broadcast("block",json.dumps(self._block_to_mine.__dict__,
                                                         sort_keys=True,
                                                         cls=TransactionEncoder))
         
@@ -302,7 +289,7 @@ class Blockchain:
             self.broadcast.broadcast("transaction",json.dumps(transaction.__dict__,sort_keys=True))
         return
 
-    def confirm_block(self, block):
+    def confirm_block(self,foreign_block):
         """
         Pass a block to be confirmed by the blockchain
 
@@ -310,8 +297,45 @@ class Blockchain:
         ----------
         block: Block object
         """
-        self._confirm_block = True
-        self._blocks_to_confirm.append(block)
+
+        if self._miner :
+            self._confirm_block = True
+
+            print("Confirming an incoming block with hash ",
+                    foreign_block.compute_hash()[self._difficulty:self._difficulty + 4])
+            if self._add_block(foreign_block):
+                
+                print("Block confirmed by other node")      
+
+                local_block_tr = self._block_to_mine.get_transactions()
+
+                for tr in foreign_block.get_transactions():
+
+                    # Remove the incoming block's transaction from the pool
+                    if tr in self._pending_transactions:
+                        self._pending_transactions.remove(tr)
+                        
+                    #Remove the incoming block's transaction from the locally mined block
+                    if tr in local_block_tr:
+                        local_block_tr.remove(tr)
+                
+                #The transactions that were not added to the chain get put back in the pool
+                self._pending_transactions.extend(local_block_tr)
+                self._confirm_block = False
+                return True
+            else:
+                #Block is not valid, we continue mining
+                print("Resume mining...")
+                #Reset block confirmation fields
+                self._confirm_block = False
+                return False
+            
+            print("Block confirmed by other node")      
+
+        else:
+            return self._add_block(foreign_block)
+            
+
 
     def mine(self):
         """Implements the mining procedure"""
@@ -323,7 +347,7 @@ class Blockchain:
                 
                 input_tr = copy.deepcopy(self._pending_transactions)
                 nb_transactions = len(input_tr)
-                new_block = Block(index=random.randint(1, sys.maxsize),
+                self._block_to_mine = Block(index=random.randint(1, sys.maxsize),
                                 transactions=input_tr,
                                 timestamp=time.time(),
                                 previous_hash=self._last_hash)
@@ -332,40 +356,8 @@ class Blockchain:
                 del self._pending_transactions[:nb_transactions]
                 # print("Processed {} transaction(s) in this block, {} pending".format(nb_transactions, len(self._pending_transactions)))
 
-                # print("Mining....")
-
-                proof = self._proof_of_work(new_block)
-                if proof is None:
-                    print("Block confirmed by other node")
-
-                    foreign_block = self._blocks_to_confirm.pop()
-                    local_block_tr = new_block.get_transactions()
-
-                    for tr in foreign_block.get_transactions():
-                        
-                        # Remove the incoming block's transaction from the pool
-                        if tr in self._pending_transactions:
-                            self._pending_transactions.remove(tr)
-                            
-                        #Remove the incoming block's transaction from the locally mined block
-                        if tr in local_block_tr:
-                            local_block_tr.remove(tr)
-                    
-                    #The transactions that were not added to the chain get put back in the pool
-                    self._pending_transactions.extend(local_block_tr)
-                    
-                    #Reset block confirmation fields
-                    if self._blocks_to_confirm:
-                        self._confirm_block = False
-                        
-
-                #Current node mined block     
-                elif self._add_block(new_block):
-                    continue
-                else:
-                    #Computed proof is not correct, add the transactions back in the pool
-                    print("Proof not correct, transactions go back in pool")
-                    self._pending_transactions.extend(input_tr)
+                self._proof_of_work()
+                self._add_block(self._block_to_mine)
 
     def is_valid(self):
         """Checks if the current state of the blockchain is valid.

@@ -63,7 +63,7 @@ class Storage():
                 print("Unable to mine")
                 return
         else:
-            # Connect to bootstrap address if simplee user
+            # Connect to bootstrap address if simple user
             self._address = bootstrap
 
 
