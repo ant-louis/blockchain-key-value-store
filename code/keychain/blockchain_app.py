@@ -70,6 +70,7 @@ def message_handler():
     if(message_type == "transaction"):
         t = json.loads(message)
         transaction = Transaction(t["key"], t["value"], t["origin"])
+        print("IN HANDLER :",transaction)
         node.add_transaction(transaction)
         return json.dumps({"deliver": True})
 

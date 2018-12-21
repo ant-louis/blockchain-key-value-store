@@ -315,7 +315,7 @@ class Blockchain:
                 
                 input_tr = copy.deepcopy(self._pending_transactions)
                 nb_transactions = len(input_tr)
-                new_block = Block(index="rand",
+                new_block = Block(index=random.randint(1, sys.maxsize),
                                 transactions=input_tr,
                                 timestamp=time.time(),
                                 previous_hash=self._last_hash)
