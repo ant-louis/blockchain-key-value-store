@@ -97,12 +97,33 @@ def message_handler():
 
 @app.route("/put")
 def put():
-    data = request.get_json(force=True)
-    key = data["key"]
-    value = data["value"]
-    origin = data["origin"]
+    key = request.args.get('key')
+    value = request.args.get('value')
+    origin = request.args.get('origin')
     node.add_transaction(Transaction(key,value,origin))
     return json.dumps({"deliver": True})
+
+@app.route("/retrieve")
+def retrieve():
+    value = None
+    key = request.args.get('key')
+    blocks = node.get_blocks()
+    for block in reversed(blocks):
+        for transaction in reversed(block.get_transactions()):
+            if key == transaction.key:
+                value = transaction.value
+    return json.dumps({"value": value})
+
+@app.route("/retrieve_all")
+def retrieve_all():
+    values = []
+    key = request.args.get('key')
+    blocks = node.get_blocks()
+    for block in reversed(blocks):
+        for transaction in reversed(block.get_transactions()):
+            if key == transaction.key:
+                values.append(transaction.value)
+    return json.dumps({"values": values})
 
 @app.route("/peers")
 def get_peers():

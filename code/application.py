@@ -36,7 +36,7 @@ def allocate_application(arguments):
     application = Storage(
         bootstrap=arguments.bootstrap,
         miner=arguments.miner,
-        difficulty=arguments.difficulty)
+        )
 
     return application
 
@@ -50,9 +50,6 @@ def parse_arguments():
                         const=True, help="Starts the mining procedure.")
     parser.add_argument("--bootstrap", type=str, default=None,
                         help="Sets the address of the bootstrap node.")
-    parser.add_argument("--difficulty", type=int, default=5,
-                        help="Sets the difficulty of Proof of Work, only has "
-                             "an effect with the `--miner` flag has been set.")
     arguments, _ = parser.parse_known_args()
 
     return arguments

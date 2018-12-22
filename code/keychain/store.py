@@ -81,7 +81,6 @@ class Storage():
         callback = Callback(self, key, value)
         if block:
             callback.wait()
-
         return callback
 
 
@@ -92,41 +91,23 @@ class Storage():
         or implement some indexing schemes if you would like to do something
         more efficient.
         """
-       # Get the blockchain
-        url = "http://{}/blockchain".format(self._address)
-        result = get(url)
+       # Get the value of the most recent transaction corresponding to key
+        url = "http://{}/retrieve".format(self._address)
+        result = get(url, data=json.dumps({"key": key}))
         if result.status_code != 200:
-            print("Unable to reetrieve value from the blockchain")
+            print("Unable to retrieve value from the blockchain")
             return
-        chain = result.json()["chain"]
-
-        # Get the value of the most recent transaction corresponding to key
-        value = None
-        for block in reversed(chain):
-            block = json.loads(block)
-            for t in reversed(block["_transactions"]):
-                if t["key"] == key:
-                    value = t["value"]
-        return value
+        return result.json()["value"]
 
 
     def retrieve_all(self, key):
         """Retrieves all values associated with the specified key on the
         complete blockchain.
         """
-        # Get the blockchain
-        url = "http://{}/blockchain".format(self._address)
-        result = get(url)
-        if result.status_code != 200:
-            print("Unable to retrieve values from the blockchain")
-            return
-        chain = result.json()["chain"]
-        
         # Get the values of the transactions corresponding to key
-        values = []
-        for block in reversed(chain):
-            block = json.loads(block)
-            for t in reversed(block["_transactions"]):
-                if t["key"] == key:
-                    values.append(t["value"])
-        return values
+        url = "http://{}/retrieve_all".format(self._address)
+        result = get(url, data=json.dumps({"key": key}))
+        if result.status_code != 200:
+            print("Unable to retrieve all values from the blockchain")
+            return
+        return result.json()["values"]
