@@ -227,9 +227,9 @@ class Blockchain:
             self._master_chain.extend(max_len_branch[:-1])
             #Remove all  but one element from the list of branches
             self._branch_list = [[max_len_branch[-1]]]
-            [print("Block ID {} hash {} added to MASTER"
-                    .format(block._index, block.compute_hash()[self._difficulty:self._difficulty + 4]))
-                    for block in max_len_branch[:-1]]
+            for block in max_len_branch[:-1]:
+                print("Block ID {} hash {} added to MASTER".format(block._index, block.compute_hash()[self._difficulty:self._difficulty + 4]))
+
             return True
         
         return createBranch
@@ -333,7 +333,9 @@ class Blockchain:
             print("Block confirmed by other node")      
 
         else:
+            self._pending_transactions = []
             return self._add_block(foreign_block)
+
             
 
 
