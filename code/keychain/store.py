@@ -9,6 +9,7 @@ from blockchain_app import app
 import blockchain_app
 import json
 import argparse
+import subprocess
 
 
 class Callback:
@@ -34,41 +35,18 @@ class Callback:
 
 
 class Storage():
-
-    port = 5000
     
-    def __init__(self, bootstrap, miner):
-        """Allocate the backend storage of the high level API, i.e.,
+    def __init__(self, bootstrap, miner, port = 5000):
+        """
+        Allocate the backend storage of the high level API, i.e.,
         your blockchain. Depending whether or not the miner flag has
         been specified, you should allocate the mining process.
         """
-        if miner:
-            # Set ip address
-            Storage.port += 1
-            self._address = get('https://api.ipify.org').text + ":" + str(Storage.port)
-
-            # Run the app in a thread
-            Thread(target=app.run(debug=True,host=self._address)).start()
-
-            # Bootstrap
-            url = "http://{}/bootstrap".format(self._address)
-            result = get(url, data=json.dumps({"bootstrap": bootstrap}))
-            if result.status_code != 200:
-                print("Unable to connect the bootstrap server")
-                return
-            
-            # Mine
-            result = get("http://{}/mine".format(self._address))
-            if result.status_code != 200:
-                print("Unable to mine")
-                return
-        else:
-            # Connect to bootstrap address if simple user
-            self._address = bootstrap
-
+        self.blockchain_app = subprocess.Popen(["python" ,"blockchain_app.py", "--miner", miner, "--bootstrap", bootstrap, "--port", port])
 
     def put(self, key, value, block=True):
-        """Puts the specified key and value on the Blockchain.
+        """
+        Puts the specified key and value on the Blockchain.
         The block flag indicates whether the call should block until the value
         has been put onto the blockchain, or if an error occurred.
         """
@@ -85,7 +63,8 @@ class Storage():
 
 
     def retrieve(self, key):
-        """Searches the most recent value of the specified key.
+        """
+        Searches the most recent value of the specified key.
 
         -> Search the list of blocks in reverse order for the specified key,
         or implement some indexing schemes if you would like to do something
@@ -101,7 +80,8 @@ class Storage():
 
 
     def retrieve_all(self, key):
-        """Retrieves all values associated with the specified key on the
+        """
+        Retrieves all values associated with the specified key on the
         complete blockchain.
         """
         # Get the values of the transactions corresponding to key
@@ -111,3 +91,9 @@ class Storage():
             print("Unable to retrieve all values from the blockchain")
             return
         return result.json()["values"]
+    
+    def __del__(self):
+        """
+        Kill the flask application when the Storage is deleted.
+        """
+        self.blockchain_app.kill()

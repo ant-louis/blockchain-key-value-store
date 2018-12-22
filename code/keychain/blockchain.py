@@ -17,6 +17,7 @@ from flask import Flask, request
 from requests import get, post, exceptions
 from broadcast import Broadcast, send_to_one 
 
+
 class TransactionEncoder(json.JSONEncoder):
 
     def default(self, obj):
@@ -75,7 +76,7 @@ class Transaction:
 
 class Blockchain:
 
-    def __init__(self, difficulty, port, miner = True):
+    def __init__(self, bootstrap, port = 5000, miner = True):
         """The bootstrap address serves as the initial entry point of
         the bootstrapping procedure. In principle it will contact the specified
         address, download the peerlist, and start the bootstrapping procedure.
