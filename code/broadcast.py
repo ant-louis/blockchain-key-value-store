@@ -146,7 +146,6 @@ class Broadcast():
                 self._correct.remove(peer)
             for peer in to_remove_peer:
                 self._peers.remove(peer)
-            print(self._correct)
             sleep(10)
 
 
