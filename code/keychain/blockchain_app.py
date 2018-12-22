@@ -1,4 +1,3 @@
-from blockchain import Block, Blockchain, Transaction, TransactionEncoder
 import time
 import datetime
 import json
@@ -10,7 +9,7 @@ from hashlib import sha256
 from flask import Flask, request
 from requests import get, post, exceptions
 import logging
-
+from .blockchain import Block, Blockchain, Transaction, TransactionEncoder
 
 def parse_arguments():
     parser = argparse.ArgumentParser(
@@ -42,13 +41,6 @@ app.logger.disabled = True
 arguments = parse_arguments()
 node = Blockchain(arguments.bootstrap ,miner = arguments.port, port = arguments.port)
 
-
-@app.route("/bootstrap")
-def boostrap():
-    address = request.args.get("bootstrap")
-    node.bootstrap(address)
-    return json.dumps({"result":True})
-
 @app.route("/blockchain")
 def get_chain():
     chain_data = []
@@ -56,10 +48,6 @@ def get_chain():
         chain_data.append(json.dumps(block.__dict__, sort_keys=True, cls=TransactionEncoder))
     return json.dumps({"length": len(chain_data), "chain": chain_data})
 
-@app.route("/mine")
-def mine():
-    node.mine()
-    return json.dumps({"deliver": True})
 
 @app.route("/addNode")
 def add_node():
@@ -102,6 +90,17 @@ def message_handler():
     else:
         return 
 
+@app.route("/peers")
+def get_peers():
+    peers = []
+    for peer in node.get_peers():
+        peers.append(peer)
+    return json.dumps({"peers": peers})
+
+@app.route("/heartbeat")
+def heartbreat():
+    return json.dumps({"deliver": True})
+
 @app.route("/put")
 def put():
     key = request.args.get('key')
@@ -132,16 +131,7 @@ def retrieve_all():
                 values.append(transaction.value)
     return json.dumps({"values": values})
 
-@app.route("/peers")
-def get_peers():
-    peers = []
-    for peer in node.get_peers():
-        peers.append(peer)
-    return json.dumps({"peers": peers})
 
-@app.route("/heartbeat")
-def heartbreat():
-    return json.dumps({"deliver": True})
-    
 if __name__ == "__main__":
+    print("In init blockchain_app")
     app.run(debug=False, port=arguments.port)

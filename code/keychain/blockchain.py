@@ -15,8 +15,9 @@ import copy
 from hashlib import sha256
 from flask import Flask, request
 from requests import get, post, exceptions
-from broadcast import Broadcast, send_to_one 
+from .broadcast import Broadcast, send_to_one
 
+DIFFICULTY  = 2
 
 class TransactionEncoder(json.JSONEncoder):
 
@@ -86,19 +87,22 @@ class Blockchain:
         self._branch_list = []
         self._last_hash = None
         self._pending_transactions = []
-        self._difficulty = difficulty
+        self._difficulty = DIFFICULTY
         self._miner = miner
         #Block confirmation request
         self._confirm_block = False #Block request flag
         self._blocks_to_confirm = []
         self._block_to_mine = None
 
-        #self.ip = get('https://api.ipify.org').text
-        self._ip = "127.0.0.1:{}".format(port)
+        ip = get('https://api.ipify.org').text
+        self._ip = "{}:{}".format(ip,port)
         
         # self._add_genesis_block()
 
         self.broadcast = Broadcast(set(), self._ip)
+
+        # Bootstrap the the node
+        self.bootstrap(bootstrap)
 
         #Creating mining thread
         if self._miner:
