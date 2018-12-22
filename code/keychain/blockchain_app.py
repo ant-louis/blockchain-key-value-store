@@ -20,9 +20,6 @@ def parse_arguments():
                         const=True, help="Starts the mining procedure.")
     parser.add_argument("--bootstrap", type=str, default=None,
                         help="Sets the address of the bootstrap node.")
-    parser.add_argument("--difficulty", type=int, default=5,
-                        help="Sets the difficulty of Proof of Work, only has "
-                             "an effect with the `--miner` flag has been set.")
     parser.add_argument("--port", type=int, default=5000,
                         help="Port on which the flask application runs")
     arguments, _ = parser.parse_known_args()
@@ -44,6 +41,7 @@ node = Blockchain(arguments.bootstrap ,miner = arguments.port, port = arguments.
 @app.route("/blockchain")
 def get_chain():
     chain_data = []
+    # Returns the blockchain and its length
     for block in node.get_blocks():
         chain_data.append(json.dumps(block.__dict__, sort_keys=True, cls=TransactionEncoder))
     return json.dumps({"length": len(chain_data), "chain": chain_data})
@@ -51,29 +49,32 @@ def get_chain():
 
 @app.route("/addNode")
 def add_node():
+    # Retrieve data from the request
     address = request.args.get("address")
+    # Add the node to the network and
+    # returns the hash of the last block
     node.add_node(address)
     return json.dumps(node.get_last_master_hash())
     
 @app.route("/broadcast")
 def message_handler():
-
+    # Retrieve data from the request
     message_type = request.args.get('type')
     message = request.args.get('message')
     sender = request.args.get('sender')
+
     broadcast_deliver = node.broadcast.deliver(message_type, message, sender)
     if(not broadcast_deliver[0]):
         return json.dumps({"deliver": True})
+
     message_type, message, sender = broadcast_deliver[1]
     if(message_type == "transaction"):
-
         t = json.loads(message)
         transaction = Transaction(t["key"], t["value"], t["origin"])
         node.add_transaction(transaction, False)
         return json.dumps({"deliver": True})
 
     elif(message_type == 'block'):
-
         block = json.loads(message)
         transaction = []
 
@@ -86,7 +87,6 @@ def message_handler():
                                 block["_nonce"])
         node.confirm_block(new_block)
         return json.dumps({"deliver": True})
-
     else:
         return 
 
@@ -103,34 +103,48 @@ def heartbreat():
 
 @app.route("/put")
 def put():
+    # Retrieve data from the request
     key = request.args.get('key')
     value = request.args.get('value')
     origin = request.args.get('origin')
+
+    # Add the transaction and returns an acknowledgement
     node.add_transaction(Transaction(key,value,origin))
     return json.dumps({"deliver": True})
+
 
 @app.route("/retrieve")
 def retrieve():
     value = None
+    # Retrieve data from the request
     key = request.args.get('key')
-    blocks = node.get_blocks()
-    for block in reversed(blocks):
-        for transaction in reversed(block.get_transactions()):
+
+    # Iterate through blocks and transactions to find the 
+    # most recent value corresponding to the target key
+    blocks = reversed(node.get_blocks())
+    for block in blocks:
+        transactions = reversed(block.get_transactions())
+        for transaction in transactions:
             if key == transaction.key:
                 value = transaction.value
     return json.dumps({"value": value})
 
+
 @app.route("/retrieve_all")
 def retrieve_all():
     values = []
+    # Retrieve data from the request
     key = request.args.get('key')
-    blocks = node.get_blocks()
-    for block in reversed(blocks):
-        for transaction in reversed(block.get_transactions()):
+
+    # Iterate through blocks and transactions to the 
+    # values corresponding to the target keys
+    blocks = reversed(node.get_blocks())
+    for block in blocks:
+        transactions = reversed(block.get_transactions())
+        for transaction in transactions:
             if key == transaction.key:
                 values.append(transaction.value)
     return json.dumps({"values": values})
-
 
 if __name__ == "__main__":
     print("In init blockchain_app")

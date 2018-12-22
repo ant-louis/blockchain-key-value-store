@@ -1,7 +1,5 @@
 """
 Blockchain (stub).
-
-NB: Feel free to extend or modify.
 """
 import time
 import datetime
@@ -20,42 +18,45 @@ from .broadcast import Broadcast, send_to_one
 DIFFICULTY  = 2
 
 class TransactionEncoder(json.JSONEncoder):
-
     def default(self, obj):
         if isinstance(obj, Transaction):
             return vars(obj)
         return json.JSONEncoder.default(self, obj)
 
+
+
 class Block:
     def __init__(self, index, transactions, timestamp, previous_hash, nonce = 0):
-        """Describe the properties of a block."""
-
+        """Init the properties of a block.
+        """
         self._index = index
         self._transactions = transactions
         self._timestamp = timestamp
         self._previous_hash = previous_hash
         self._nonce = nonce
 
-
     def proof(self, difficulty):
-        """Return the proof of the current block."""
+        """Returns the proof of the current block.
+        """
         # print("Hash in proof",self.compute_hash())
         return self.compute_hash().startswith('0' * difficulty)
                 
-
     def get_transactions(self):
-        """Returns the list of transactions associated with this block."""
+        """Returns the list of transactions associated with the block.
+        """
         return self._transactions
 
     def compute_hash(self):
         """
-        A function that return the hash of the block contents.
+        Returns the hash of the block contents.
         """
-
         block_string = json.dumps(self.__dict__, sort_keys=True, cls=TransactionEncoder)
         return sha256(block_string.encode()).hexdigest()
 
     def _change_nonce(self, random = False):
+        """
+        Changes the nonce of a block.
+        """
         if(random):
             self._nonce = random.randint(1, sys.maxsize)
         else:
@@ -65,29 +66,32 @@ class Block:
 
 class Transaction:
     def __init__(self, key, value, origin):
-        """A transaction, in our KV setting. A transaction typically involves
+        """Init the transaction. A transaction typically involves
         some key, value and an origin (the one who put it onto the storage).
         """
         self.key = key
         self.value = value 
         self.origin = origin
-    #Overwriting equality test
-    def __eq__(self, other): 
+
+    def __eq__(self, other):
+        """
+        Overwrite of the equality test.
+        """
         return self.__dict__ == other.__dict__
 
-class Blockchain:
 
+
+
+class Blockchain:
     def __init__(self, bootstrap, port = 5000, miner = True):
-        """The bootstrap address serves as the initial entry point of
-        the bootstrapping procedure. In principle it will contact the specified
-        address, download the peerlist, and start the bootstrapping procedure.
+        """Init the blockchain.
         """
         # Initialize the properties.
         self._master_chain = []
         self._branch_list = []
         self._last_hash = None
         self._pending_transactions = []
-        self._difficulty = DIFFICULTY
+        self._difficulty = 5
         self._miner = miner
         #Block confirmation request
         self._confirm_block = False #Block request flag
@@ -111,12 +115,17 @@ class Blockchain:
             mining_thread.start()
 
     def _add_genesis_block(self):
-        """Adds the genesis block to your blockchain."""
+        """Adds the genesis block to your blockchain.
+        """
         self._master_chain.append(Block(0, [], time.time(), "0"))
         self._last_hash = self._master_chain[-1].compute_hash()
         print("Genesis block added, hash :",self._last_hash[self._difficulty:self._difficulty + 4])
     
     def bootstrap(self, address):
+        """The bootstrap address serves as the initial entry point of
+        the bootstrapping procedure. It will contact the specified
+        address, download the peerlist, and start the bootstrapping procedure.
+        """
         if(address == self._get_ip()):
             # Initialize the chain with the Genesis block.
             self._add_genesis_block()
@@ -133,7 +142,6 @@ class Blockchain:
         self.add_node(address)
         if(self._get_ip() in peers):
             peers.remove(self._get_ip())
-
 
         # Get all the blocks from a non-corrupted node
         hashes = {}
@@ -170,9 +178,15 @@ class Blockchain:
         return
    
     def add_node(self, peer):
+        """
+        Add a node to the network.
+        """
         self.broadcast.add_peer(peer)   
 
     def _get_ip(self):
+        """
+        Get ip address of a node.
+        """
         return self._ip
 
     def _add_block(self,new_block):
@@ -182,7 +196,6 @@ class Blockchain:
         Constraint: Discard block if the parent is more than 1 generation away
         from the master chain
         """
-
         #Check block validity
         if not new_block.proof(self._difficulty):
             print("Block has incorrect proof")
@@ -199,12 +212,10 @@ class Blockchain:
 
         createBranch = False
         for branch in self._branch_list:
-
             if createBranch:
                 break
             #If parent of new_block is last block of the branch,
             #add it to the branch
-
             if branch[-1].compute_hash() == new_block._previous_hash:
                 branch.append(new_block)
                 createBranch = True
@@ -223,7 +234,6 @@ class Blockchain:
         max_len_branch = sorted(self._branch_list, key=len)[-1]
         max_len = len(sorted(self._branch_list, key=len)[-1])
         
-
         #Longest chain rule : branch longer than 4 blocks get added
         if max_len > 4:
             #Add all but one element to the master chain
@@ -260,34 +270,37 @@ class Blockchain:
         self.broadcast.broadcast("block",json.dumps(self._block_to_mine.__dict__,
                                                         sort_keys=True,
                                                         cls=TransactionEncoder))
-        
         print("Mined block hash",computed_hash[self._difficulty:self._difficulty + 4])
         self._last_hash = computed_hash
         return computed_hash
 
     def get_blocks(self):
-        """ Return all blocks from the chain"""
+        """ Returns all blocks from the chain.
+        """
         return self._master_chain
 
     def get_last_master_hash(self):
-        """Return the hash of the last block"""
+        """Returns the hash of the last block.
+        """
         return self._master_chain[-1].compute_hash()
 
     def get_peers(self):
+        """ Returns all peers of the newtork.
+        """
         return self.broadcast.get_peers()
 
     def difficulty(self):
-        """Returns the difficulty level."""
+        """Returns the difficulty level.
+        """
         return self._difficulty
 
     def add_transaction(self, transaction, broadcast = True):
         """Adds a transaction to your current list of transactions,
         and broadcasts it to your Blockchain network.
         
-        If the `mine` method is called, it will collect the current list
+        NB : If the `mine` method is called, it will collect the current list
         of transactions, and attempt to mine a block with those.
         """
-
         # print("Added transaction" ,transaction.__dict__)
         self._pending_transactions.append(transaction)
         if broadcast:
@@ -295,27 +308,20 @@ class Blockchain:
         return
 
     def confirm_block(self,foreign_block):
+        """Pass a block to be confirmed by the blockchain.
         """
-        Pass a block to be confirmed by the blockchain
-
-        Parameters:
-        ----------
-        block: Block object
-        """
-
         if self._miner :
             self._confirm_block = True
 
             print("Confirming an incoming block with hash ",
                     foreign_block.compute_hash()[self._difficulty:self._difficulty + 4])
+
             if self._add_block(foreign_block):
-                
                 print("Block confirmed by other node")      
 
                 local_block_tr = self._block_to_mine.get_transactions()
 
                 for tr in foreign_block.get_transactions():
-
                     # Remove the incoming block's transaction from the pool
                     if tr in self._pending_transactions:
                         self._pending_transactions.remove(tr)
@@ -334,19 +340,14 @@ class Blockchain:
                 #Reset block confirmation fields
                 self._confirm_block = False
                 return False
-            
             print("Block confirmed by other node")      
-
         else:
             self._pending_transactions = []
             return self._add_block(foreign_block)
 
-            
-
-
     def mine(self):
-        """Implements the mining procedure"""
-
+        """Implements the mining procedure.
+        """
         while(True):
             if not self._pending_transactions:
                 time.sleep(1) #Wait before checking new transactions
@@ -367,9 +368,8 @@ class Blockchain:
                 self._add_block(self._block_to_mine)
 
     def is_valid(self):
-        """Checks if the current state of the blockchain is valid.
-
-        Meaning, are the sequence of hashes, and the proofs of the
+        """Checks if the current state of the blockchain is valid, 
+        meaning, are the sequence of hashes, and the proofs of the
         blocks correct?
         """
         previous_hash = self.get_last_master_hash()

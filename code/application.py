@@ -1,7 +1,5 @@
 """
 User-level application (stub).
-
-NB: Feel free to extend or modify.
 """
 
 import argparse
