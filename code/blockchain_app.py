@@ -9,7 +9,7 @@ from hashlib import sha256
 from flask import Flask, request
 from requests import get, post, exceptions
 import logging
-from .blockchain import Block, Blockchain, Transaction, TransactionEncoder
+from blockchain import Block, Blockchain, Transaction, TransactionEncoder
 
 def parse_arguments():
     parser = argparse.ArgumentParser(

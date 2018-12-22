@@ -3,7 +3,7 @@ User-level application (stub).
 """
 
 import argparse
-from keychain import Storage
+from store import Storage
 
 
 def main(arguments):

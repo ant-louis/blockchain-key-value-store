@@ -13,7 +13,7 @@ import copy
 from hashlib import sha256
 from flask import Flask, request
 from requests import get, post, exceptions
-from .broadcast import Broadcast, send_to_one
+from broadcast import Broadcast, send_to_one
 
 DIFFICULTY  = 2
 
