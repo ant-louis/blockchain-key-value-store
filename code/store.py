@@ -40,8 +40,9 @@ class Storage():
         been specified, you should allocate the mining process.
         """
         self.blockchain_app = subprocess.Popen(["python" ,"blockchain_app.py", "--miner", str(miner), "--bootstrap", str(bootstrap), "--port", str(port)])
-        ip = get('https://api.ipify.org').text
+        ip = "127.0.0.1"
         self._address = "{}:{}".format(ip,port)
+        sleep(5)
 
     def put(self, key, value, block=True):
         """
@@ -50,7 +51,8 @@ class Storage():
         has been put onto the blockchain, or if an error occurred.
         """
         url = "http://{}/put".format(self._address)
-        result = get(url, data=json.dumps({"key": key, "value": value, "origin": self._address}))
+        result = get(url, data=json.dumps({"key": key, "value": value, "origin": self._address}),timeout = 10)
+        
         if result.status_code != 200:
             print("Unable to put transaction on the blockchain")
             return
@@ -96,4 +98,4 @@ class Storage():
         """
         Kill the flask application when the Storage is deleted.
         """
-        #self.blockchain_app.kill()
+        self.blockchain_app.kill()
