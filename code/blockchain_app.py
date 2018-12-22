@@ -37,7 +37,7 @@ app.logger.disabled = True
 
 #Instanciate the blockchain
 arguments = parse_arguments()
-node = Blockchain(arguments.bootstrap ,miner = arguments.port, port = arguments.port)
+node = Blockchain(miner = arguments.miner, port = arguments.port)
 
 @app.route("/blockchain")
 def get_chain():
@@ -105,14 +105,13 @@ def heartbreat():
 @app.route("/put")
 def put():
     # Retrieve data from the request
-    key = request.args.get('key')
-    value = request.args.get('value')
-    origin = request.args.get('origin')
+    data = request.get_json(force=True)
+    key = data['key']
+    value = data['value']
+    origin = data['origin']
 
     # Add the transaction and returns an acknowledgement
-    print("In application put 1")
     node.add_transaction(Transaction(key,value,origin))
-    print("In application put 2")
     return json.dumps({"deliver": True})
 
 
@@ -120,12 +119,12 @@ def put():
 def retrieve():
     value = None
     # Retrieve data from the request
-    key = request.args.get('key')
-
+    key = request.get_json(force=True)['key']
+    
     # Iterate through blocks and transactions to find the 
     # most recent value corresponding to the target key
-    blocks = reversed(node.get_blocks())
-    for block in blocks:
+    chain = reversed(node.get_blocks())
+    for block in chain:
         transactions = reversed(block.get_transactions())
         for transaction in transactions:
             if key == transaction.key:
@@ -137,12 +136,12 @@ def retrieve():
 def retrieve_all():
     values = []
     # Retrieve data from the request
-    key = request.args.get('key')
+    key = request.get_json(force=True)['key']
 
     # Iterate through blocks and transactions to the 
     # values corresponding to the target keys
-    blocks = reversed(node.get_blocks())
-    for block in blocks:
+    chain = reversed(node.get_blocks())
+    for block in chain:
         transactions = reversed(block.get_transactions())
         for transaction in transactions:
             if key == transaction.key:
@@ -152,4 +151,4 @@ def retrieve_all():
 if __name__ == "__main__":
     print("In init blockchain_app")
     Thread(target=node.bootstrap, args=(arguments.bootstrap,)).start()
-    app.run(port=arguments.port, debug=True)
+    app.run(port=arguments.port, debug=False)

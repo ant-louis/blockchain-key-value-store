@@ -17,7 +17,6 @@ class Broadcast():
         self._from[self._ip] = []
         # Start heartbeat
         self._heartbeat = True
-        print("Before starting thread")
         heart_beat = Thread(target=self.heart_beat)
         heart_beat.start()
 

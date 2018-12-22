@@ -75,6 +75,7 @@ class Storage():
         url = "http://{}/retrieve".format(self._address)
         result = get(url, data=json.dumps({"key": key}))
         if result.status_code != 200:
+            print(result)
             print("Unable to retrieve value from the blockchain")
             return
         return result.json()["value"]

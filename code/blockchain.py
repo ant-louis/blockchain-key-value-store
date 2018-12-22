@@ -121,7 +121,7 @@ class Blockchain:
         """
         self._master_chain.append(Block(0, [], time.time(), "0"))
         self._last_hash = self._master_chain[-1].compute_hash()
-        print("Genesis block added, hash :",self._last_hash[self._difficulty:self._difficulty + 4])
+        print("Genesis block added, hash :",self._last_hash)
     
     def bootstrap(self, address):
         """The bootstrap address serves as the initial entry point of
@@ -170,7 +170,7 @@ class Blockchain:
                                 block["_previous_hash"],
                                 block["_nonce"])
             
-            print("Bootstrap BLOCK:",new_block.compute_hash()[self._difficulty:self._difficulty + 4])
+            print("Bootstrap BLOCK:",new_block.compute_hash())
             init_chain.append(new_block)
         
         self._master_chain = init_chain
@@ -212,7 +212,7 @@ class Blockchain:
         if new_block._previous_hash == self._master_chain[-1].compute_hash():
             self._branch_list.append([new_block])
             print("Block ID {} hash {} added to BRANCH".format(new_block._index, 
-                            new_block_hash[self._difficulty:self._difficulty + 4]))
+                            new_block_hash))
             return True
 
         createBranch = False
@@ -225,7 +225,7 @@ class Blockchain:
                 branch.append(new_block)
                 createBranch = True
                 print("Block ID {} hash {} added to BRANCH".format(new_block._index, 
-                                new_block_hash[self._difficulty:self._difficulty + 4]))
+                                new_block_hash))
                 break
             #Else, copy the branch and add the new block to the copy
             for k, block in enumerate(branch):
@@ -234,7 +234,7 @@ class Blockchain:
                     new_branch.append(new_block)
                     self._branch_list.append(new_branch)
                     print("Block ID {} hash {} added to NEW BRANCH".format(new_block._index, 
-                                new_block_hash[self._difficulty:self._difficulty + 4]))
+                                new_block_hash))
                     createBranch = True
                     break
 
@@ -251,7 +251,7 @@ class Blockchain:
             self._branch_list = [[max_len_branch[-1]]]
             for block in max_len_branch[:-1]:
                 print("Block ID {} hash {} added to MASTER".format(block._index, 
-                        block.compute_hash()[self._difficulty:self._difficulty + 4]))
+                        block.compute_hash()))
 
             return True
         
@@ -284,7 +284,7 @@ class Blockchain:
         self.broadcast.broadcast("block",json.dumps(self._block_to_mine.__dict__,
                                                         sort_keys=True,
                                                         cls=TransactionEncoder))
-        print("Mined block hash",computed_hash[self._difficulty:self._difficulty + 4])
+        print("Mined block hash",computed_hash)
         self._last_hash = computed_hash
         return True
 
@@ -334,7 +334,7 @@ class Blockchain:
             self._confirm_block = True
 
             print("Confirming an incoming block with hash ",
-                    foreign_block.compute_hash()[self._difficulty:self._difficulty + 4])
+                    foreign_block.compute_hash())
 
             if self._add_block(foreign_block):
                 self._block_added = True
@@ -362,7 +362,7 @@ class Blockchain:
                 return True
             else:
                 #Block is not valid, we continue mining
-                print("Resume mining...")
+                # print("Resume mining...")
                 #Reset block confirmation fields
                 self._confirm_block = False
                 return False
@@ -430,15 +430,3 @@ def get_address_best_hash(hashes):
 
     return None
 
-# if __name__== '__main__':
-#     b = Blockchain("127.0.0.1")
-#     i = 0
-#     while True:
-#         time.sleep(1)
-#         t1 = Transaction("Tom",i,"127.0.0.1")
-#         t2 = Transaction("Tom",i+1,"127.0.0.1")
-#         b.add_transaction(t1)
-#         b.add_transaction(t2)
-
-#         i += 11
-        
