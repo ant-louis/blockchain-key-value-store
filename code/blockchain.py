@@ -15,7 +15,6 @@ from flask import Flask, request
 from requests import get, post, exceptions
 from broadcast import Broadcast, send_to_one
 
-DIFFICULTY  = 2
 
 class TransactionEncoder(json.JSONEncoder):
     def default(self, obj):
@@ -100,13 +99,14 @@ class Blockchain:
         self._confirm_block = False #Incoming Block confirmation flag
         self._block_added = False #Incoming block added flag
 
-        ip = get('https://api.ipify.org').text
+        #ip = get('https://api.ipify.org').text
+        ip = "127.0.0.1"
         self._ip = "{}:{}".format(ip,port)
         
         self.broadcast = Broadcast(set(), self._ip)
 
         # Bootstrap the the node
-        self.bootstrap(bootstrap)
+        # self.bootstrap(bootstrap)
 
         #Creating mining thread
         if self._miner:
@@ -126,6 +126,7 @@ class Blockchain:
         the bootstrapping procedure. It will contact the specified
         address, download the peerlist, and start the bootstrapping procedure.
         """
+        print("BOOSTRAPING -------------")
         if(address == self._get_ip()):
             # Initialize the chain with the Genesis block.
             self._add_genesis_block()

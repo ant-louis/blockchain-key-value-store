@@ -10,6 +10,7 @@ from flask import Flask, request
 from requests import get, post, exceptions
 import logging
 from blockchain import Block, Blockchain, Transaction, TransactionEncoder
+from threading import Thread
 
 def parse_arguments():
     parser = argparse.ArgumentParser(
@@ -109,7 +110,9 @@ def put():
     origin = request.args.get('origin')
 
     # Add the transaction and returns an acknowledgement
+    print("In application put 1")
     node.add_transaction(Transaction(key,value,origin))
+    print("In application put 2")
     return json.dumps({"deliver": True})
 
 
@@ -148,4 +151,5 @@ def retrieve_all():
 
 if __name__ == "__main__":
     print("In init blockchain_app")
-    app.run(debug=False, port=arguments.port)
+    Thread(target=node.bootstrap, args=(arguments.bootstrap,)).start()
+    app.run(port=arguments.port, debug=True)

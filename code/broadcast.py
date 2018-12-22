@@ -26,7 +26,7 @@ class Broadcast():
         Add the peer to the list of peers 
         if it is not already in
         """
-        if peer not in self._peers:
+        if peer not in self._peers and peer != self._ip:
             self._correct.add(peer)
             self._peers.add(peer)
             self._from[peer] = []
@@ -119,21 +119,33 @@ class Broadcast():
         response does not raise error. The process is marked as correct
         """
         uncorrect_process = {}
+        to_remove_correct = []
+        to_remove_peer = []
         while self._heartbeat:
             for peer in self._peers:
+                to_remove_correct = []
+                to_remove_peer = []
                 try:
                     send_to_one(peer, path="heartbeat")
                 except exceptions.RequestException:
                     if peer in self._correct:
-                        self._correct.remove(peer)
+                        to_remove_correct.append(peer)
                         uncorrect_process[peer] = 1
+                        continue
+                        
                     else:
                         uncorrect_process[peer] += 1
                         if uncorrect_process[peer] > 10:
-                            self._peers.remove(peer)
+                            to_remove_peer.append(peer)
                             del self._from[peer]
+                        continue
+
                 if peer not in self._correct:
                     self._correct.add(peer)
+            for peer in to_remove_correct:
+                self._correct.remove(peer)
+            for peer in to_remove_peer:
+                self._peers.remove(peer)
             sleep(10)
 
 
@@ -148,7 +160,7 @@ def send_to_one(peer, path, message = ""):
     - `sender`: adress of the sender
     """
     url = "http://{}/{}".format(peer, path)
-    response = get(url, params=message, timeout = 1)
+    response = get(url, params=message, timeout = 10)
     if response.status_code != 200:
         raise exceptions.RequestException('Bad return error')
     return response
