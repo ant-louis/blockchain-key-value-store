@@ -82,7 +82,7 @@ class Transaction:
 
 
 class Blockchain:
-    def __init__(self, bootstrap, port = 5000, miner = True):
+    def __init__(self, port = 5000, miner = True, unitTests = False):
         """Init the blockchain.
         """
         # Initialize the properties.
@@ -90,8 +90,9 @@ class Blockchain:
         self._branch_list = []
         self._last_hash = None
         self._pending_transactions = []
-        self._difficulty = DIFFICULTY
+        self._difficulty = 4
         self._miner = miner
+
         #Block confirmation request
         self._blocks_to_confirm = []
         self._block_to_mine = None
@@ -103,10 +104,11 @@ class Blockchain:
         ip = "127.0.0.1"
         self._ip = "{}:{}".format(ip,port)
         
-        self.broadcast = Broadcast(set(), self._ip)
 
-        # Bootstrap the the node
-        # self.bootstrap(bootstrap)
+        if unitTests :
+            self._add_genesis_block()
+       
+        self.broadcast = Broadcast(set(), self._ip)
 
         #Creating mining thread
         if self._miner:
@@ -239,8 +241,8 @@ class Blockchain:
         max_len_branch = sorted(self._branch_list, key=len)[-1]
         max_len = len(sorted(self._branch_list, key=len)[-1])
         
-        #Longest chain rule : branch longer than 4 blocks get added
-        if max_len > 4:
+        #Longest chain rule : part of branch longer or equal to 2 blocks get added
+        if max_len >= 2:
             #Add all but one element to the master chain
 
             self._last_hash = max_len_branch[-1].compute_hash()
@@ -346,18 +348,15 @@ class Blockchain:
                         print(tr.key, tr.value)
                         self._pending_transactions.remove(tr)
 
-                    [print("Pending transactions after incoming removal {},{}".format(tr.key,tr.value)) for tr in self._pending_transactions]
                         
                     #Remove the incoming block's transaction from the locally mined block transaction list
                     if tr in local_block_tr:
                         local_block_tr.remove(tr)
-                    [print("Local transactions after incoming removal {},{}".format(tr.key,tr.value)) for tr in local_block_tr]
                 
                 #The transactions that were not added to the chain get put back in the pool
                 for tr in local_block_tr:
                     if tr not in self._pending_transactions:
                         self._pending_transactions.append(tr)
-                [print("Pending transactions after confirm {},{}".format(tr.key,tr.value)) for tr in self._pending_transactions]
 
                 self._confirm_block = False
                 return True
@@ -379,7 +378,6 @@ class Blockchain:
             if not self._pending_transactions:
                 time.sleep(1) #Wait before checking new transactions
             else:
-                [print("Pending transactions before mine {},{}".format(tr.key,tr.value)) for tr in self._pending_transactions]
                 input_tr = copy.deepcopy(self._pending_transactions)
                 nb_transactions = len(input_tr)
                 self._block_to_mine = Block(index=random.randint(1, sys.maxsize),
@@ -389,7 +387,6 @@ class Blockchain:
 
                 #Remove the transactions that were inserted into the block
                 del self._pending_transactions[:nb_transactions]
-                [print("Pending transactions after mine {},{}".format(tr.key,tr.value)) for tr in self._pending_transactions]
 
                 # print("Processed {} transaction(s) in this block, {} pending".format(nb_transactions, len(self._pending_transactions)))
 
@@ -401,16 +398,19 @@ class Blockchain:
         meaning, are the sequence of hashes, and the proofs of the
         blocks correct?
         """
-        previous_hash = self.get_last_master_hash()
+        chain = self._master_chain
+        last_block = chain[-1]
+        previous_hash = last_block._previous_hash
+        print("Previous hash",previous_hash)
         it = -1
         while previous_hash != "0":
             #Check if proof is valid and if previous hashes match
-            if(previous_hash != self._master_chain[it-1].compute_hash() or
-                not self._master_chain[it].proof(self._difficulty)):
+            if(previous_hash != chain[it-1].compute_hash() or
+                not chain[it].proof(self._difficulty)):
                 
                 return False
             it = it - 1
-            previous_hash = self._master_chain[it]._previous_hash
+            previous_hash = chain[it]._previous_hash
         
         return True
 
@@ -430,4 +430,15 @@ def get_address_best_hash(hashes):
 
     return None
 
+# if __name__== '__main__':
+#     b = Blockchain("127.0.0.1")
+#     i = 0
+#     while True:
+#         time.sleep(1)
+#         t1 = Transaction("Tom",i,"127.0.0.1")
+#         t2 = Transaction("Tom",i+1,"127.0.0.1")
+#         b.add_transaction(t1)
+#         b.add_transaction(t2)
 
+#         i += 11
+        
