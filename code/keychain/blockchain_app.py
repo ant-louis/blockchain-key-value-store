@@ -9,6 +9,8 @@ import operator
 from hashlib import sha256
 from flask import Flask, request
 from requests import get, post, exceptions
+import logging
+
 
 def parse_arguments():
     parser = argparse.ArgumentParser(
@@ -19,18 +21,30 @@ def parse_arguments():
                         const=True, help="Starts the mining procedure.")
     parser.add_argument("--bootstrap", type=str, default=None,
                         help="Sets the address of the bootstrap node.")
+<<<<<<< HEAD
     parser.add_argument("--port", type=int, default=5000)
+=======
+    parser.add_argument("--difficulty", type=int, default=5,
+                        help="Sets the difficulty of Proof of Work, only has "
+                             "an effect with the `--miner` flag has been set.")
+    parser.add_argument("--port", type=int, default=5000,
+                        help="Port on which the flask application runs")
+>>>>>>> 44d0069b895ffbf69487b52ed84ac24486738100
     arguments, _ = parser.parse_known_args()
 
     return arguments
 
+
 app = Flask(__name__)
-import logging
+
+#Disable the display of the request on prompt
 log = logging.getLogger('werkzeug')
 log.disabled = True
 app.logger.disabled = True
 
-node = Blockchain(5, parse_arguments().port)
+#Instanciate the blockchain
+arguments = parse_arguments()
+node = Blockchain(arguments.bootstrap ,miner = arguments.port, port = arguments.port)
 
 
 @app.route("/bootstrap")
@@ -158,5 +172,4 @@ def heartbreat():
     return json.dumps({"deliver": True})
     
 if __name__ == "__main__":
-    arguments = parse_arguments()
     app.run(debug=False, port=arguments.port)

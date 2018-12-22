@@ -15,6 +15,7 @@ from flask import Flask, request
 from requests import get, post, exceptions
 from broadcast import Broadcast, send_to_one 
 
+
 class TransactionEncoder(json.JSONEncoder):
     def default(self, obj):
         if isinstance(obj, Transaction):
@@ -79,8 +80,9 @@ class Transaction:
 
 
 
+
 class Blockchain:
-    def __init__(self, difficulty, port, miner = True):
+    def __init__(self, bootstrap, port = 5000, miner = True):
         """Init the blockchain.
         """
         # Initialize the properties.
@@ -88,7 +90,7 @@ class Blockchain:
         self._branch_list = []
         self._last_hash = None
         self._pending_transactions = []
-        self._difficulty = difficulty
+        self._difficulty = 5
         self._miner = miner
         #Block confirmation request
         self._confirm_block = False #Block request flag
