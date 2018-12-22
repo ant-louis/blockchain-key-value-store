@@ -91,7 +91,7 @@ class Blockchain:
         self._branch_list = []
         self._last_hash = None
         self._pending_transactions = []
-        self._difficulty = 5
+        self._difficulty = DIFFICULTY
         self._miner = miner
         #Block confirmation request
         self._blocks_to_confirm = []
@@ -111,7 +111,7 @@ class Blockchain:
         #Creating mining thread
         if self._miner:
             print("Create mining thread")
-            mining_thread = threading.Thread(target = self.mine)
+            mining_thread = threading.Thread(target = self.mine,daemon=True)
             mining_thread.start()
 
     def _add_genesis_block(self):
