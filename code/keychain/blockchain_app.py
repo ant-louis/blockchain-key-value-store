@@ -21,15 +21,8 @@ def parse_arguments():
                         const=True, help="Starts the mining procedure.")
     parser.add_argument("--bootstrap", type=str, default=None,
                         help="Sets the address of the bootstrap node.")
-<<<<<<< HEAD
-    parser.add_argument("--port", type=int, default=5000)
-=======
-    parser.add_argument("--difficulty", type=int, default=5,
-                        help="Sets the difficulty of Proof of Work, only has "
-                             "an effect with the `--miner` flag has been set.")
     parser.add_argument("--port", type=int, default=5000,
                         help="Port on which the flask application runs")
->>>>>>> 44d0069b895ffbf69487b52ed84ac24486738100
     arguments, _ = parser.parse_known_args()
 
     return arguments
