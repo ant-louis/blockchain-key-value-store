@@ -39,7 +39,7 @@ class Storage():
         your blockchain. Depending whether or not the miner flag has
         been specified, you should allocate the mining process.
         """
-        self.blockchain_app = subprocess.Popen(["python" ,"keychain/blockchain_app.py", "--miner", str(miner), "--bootstrap", str(bootstrap), "--port", str(port)])
+        self.blockchain_app = subprocess.Popen(["python" ,"blockchain_app.py", "--miner", str(miner), "--bootstrap", str(bootstrap), "--port", str(port)])
         ip = get('https://api.ipify.org').text
         self._address = "{}:{}".format(ip,port)
 
